@@ -35,9 +35,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      # Rust 版本由 rust-toolchain.toml 決定（與本機、CI 相同）
+      - name: Rust 工具鏈
+        run: rustup install
+
+      # macOS 通用版（universal）需要兩個架構的編譯目標
+      - name: macOS 編譯目標
+        if: matrix.os == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - uses: actions/setup-node@v4
         with:
@@ -53,8 +58,9 @@ jobs:
 
       - run: npm install
 
+      # --locked：鎖定檔過期就失敗；後面的打包用的是同一份鎖定檔
       - name: Rust 單元測試
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
       # 把編譯時的本機絕對路徑改寫成通用路徑，避免發佈的執行檔內嵌 runner 的目錄結構
       - name: 設定路徑改寫

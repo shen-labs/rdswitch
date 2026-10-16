@@ -1,0 +1,6 @@
+# 鎖定 Rust 版本，讓本機、CI 與發佈用的是同一個編譯器（可重現的建置）。
+# 升級時改這裡的版本號，並確認 cargo fmt、cargo clippy 與測試仍然通過。
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

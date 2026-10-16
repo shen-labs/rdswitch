@@ -29,9 +29,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      # Rust 版本與元件（rustfmt、clippy）由 rust-toolchain.toml 決定，本機、CI、發佈都一致
+      - name: Rust 工具鏈
+        run: rustup install
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -40,8 +40,9 @@ jobs:
       - name: cargo fmt
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
 
+      # --locked：照 Cargo.lock 的版本編譯，鎖定檔過期就失敗，不會悄悄升級相依套件
       - name: cargo clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - uses: actions/setup-node@v4
         with:
@@ -77,7 +78,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Rust 工具鏈
+        run: rustup install
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -86,4 +88,4 @@ jobs:
       # 更新簽章的整合測試需要真實簽章過的安裝檔，沒有設定環境變數時會自動略過；
       # 這裡跑的是單元測試與其餘整合測試。
       - name: cargo test
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
