@@ -6,8 +6,15 @@ on:
   push:
     tags: ["v*"]
 
+# 最小權限：整個流程預設唯讀，只有發佈的作業才加上寫入。
+# 不依賴儲存庫的預設值（新儲存庫通常是唯讀，建立 Release 會得到 403）。
+permissions:
+  contents: read
+
 jobs:
   build:
+    permissions:
+      contents: write # 建立 Release 並上傳安裝檔、簽章與 latest.json
     strategy:
       fail-fast: false
       matrix:
