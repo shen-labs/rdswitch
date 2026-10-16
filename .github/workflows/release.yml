@@ -27,7 +27,7 @@ jobs:
             args: ""
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Linux 相依套件
         if: matrix.os == 'ubuntu-22.04'
