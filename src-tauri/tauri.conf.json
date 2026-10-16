@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZEMThFQzJBMjhGNkVEMEMKUldRTTdmWW9LdXdZYmNpbVVpUHAzWGtNT2hlREFyY0NkaGlQRDNLRVhiYnhtUkNqd2FkNmxzdGQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyRTBFQkFFNzdBNTk5ODQKUldTRW1hVjNydXZnb21Mc2VVRmhlZktEMkhiRDg2a0VheERKY2cxaTR2cDhrcCtXcVZnQURhMU8K",
       "endpoints": [
         "https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json"
       ],
