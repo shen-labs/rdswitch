@@ -51,7 +51,9 @@ pub fn user_config_dir() -> PathBuf {
 /// RustDesk 背景服務的設定目錄（需系統管理員/root 才能寫入）。
 pub fn service_config_dir() -> PathBuf {
     if cfg!(windows) {
-        let win = env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+        let win = env::var_os("SystemRoot")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
         win.join("ServiceProfiles/LocalService/AppData/Roaming/RustDesk/config")
     } else if cfg!(target_os = "macos") {
         PathBuf::from("/var/root/Library/Preferences/com.carriez.RustDesk")
@@ -82,7 +84,14 @@ pub fn system_locale() -> String {
         }
         let mut buf = [0u16; 85];
         // SAFETY: 兩個都是無副作用的唯讀系統呼叫；buf 長度與傳入的 cch 一致。
-        let n = unsafe { LCIDToLocaleName(GetUserDefaultUILanguage() as u32, buf.as_mut_ptr(), buf.len() as i32, 0) };
+        let n = unsafe {
+            LCIDToLocaleName(
+                GetUserDefaultUILanguage() as u32,
+                buf.as_mut_ptr(),
+                buf.len() as i32,
+                0,
+            )
+        };
         if n > 1 {
             return String::from_utf16_lossy(&buf[..n as usize - 1]);
         }
@@ -91,7 +100,10 @@ pub fn system_locale() -> String {
     #[cfg(not(windows))]
     {
         #[cfg(target_os = "macos")]
-        if let Ok(o) = command("defaults").args(["read", "-g", "AppleLanguages"]).output() {
+        if let Ok(o) = command("defaults")
+            .args(["read", "-g", "AppleLanguages"])
+            .output()
+        {
             // 輸出形如 ( "zh-Hant-TW", "en-TW" )，取第一個引號內的字串
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             if let Some(first) = text.split('"').nth(1) {
@@ -113,9 +125,17 @@ pub fn is_elevated() -> bool {
     static CACHE: OnceLock<bool> = OnceLock::new();
     *CACHE.get_or_init(|| {
         if cfg!(windows) {
-            command("net").arg("session").output().map(|o| o.status.success()).unwrap_or(false)
+            command("net")
+                .arg("session")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
         } else {
-            command("id").arg("-u").output().map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0").unwrap_or(false)
+            command("id")
+                .arg("-u")
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+                .unwrap_or(false)
         }
     })
 }
@@ -124,12 +144,21 @@ pub fn is_elevated() -> bool {
 #[cfg(windows)]
 fn windows_rustdesk_exe() -> Option<PathBuf> {
     let out = command("reg")
-        .args(["query", r"HKLM\SYSTEM\CurrentControlSet\Services\RustDesk", "/v", "ImagePath"])
+        .args([
+            "query",
+            r"HKLM\SYSTEM\CurrentControlSet\Services\RustDesk",
+            "/v",
+            "ImagePath",
+        ])
         .output()
         .ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
     let line = text.lines().find(|l| l.contains("ImagePath"))?;
-    let value = line.split("REG_EXPAND_SZ").nth(1).or_else(|| line.split("REG_SZ").nth(1))?.trim();
+    let value = line
+        .split("REG_EXPAND_SZ")
+        .nth(1)
+        .or_else(|| line.split("REG_SZ").nth(1))?
+        .trim();
     let path = match value.strip_prefix('"') {
         Some(rest) => rest.split('"').next()?.to_string(),
         None => value.split(" --").next()?.trim().to_string(),
@@ -146,14 +175,27 @@ pub fn stop_gui() -> Vec<String> {
         // 背景服務跑在 session 0 且命令列對非管理員不可讀，必須明確排除，
         // 否則以管理員身分執行時會誤殺 RustDesk 服務。
         let ps = "$sid = (Get-Process -Id $PID).SessionId;                   Get-CimInstance Win32_Process -Filter \"Name='rustdesk.exe'\" |                   Where-Object { $_.SessionId -eq $sid -and $_.CommandLine -and $_.CommandLine -notmatch '--(service|server)' } |                   ForEach-Object { Stop-Process -Id $_.ProcessId -Force; $_.CommandLine }";
-        match command("powershell").args(["-NoProfile", "-Command", ps]).output() {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect(),
+        match command("powershell")
+            .args(["-NoProfile", "-Command", ps])
+            .output()
+        {
+            Ok(o) => String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect(),
             Err(_) => vec![],
         }
     } else if cfg!(target_os = "macos") {
-        let running = command("pgrep").args(["-x", "RustDesk"]).status().map(|s| s.success()).unwrap_or(false);
+        let running = command("pgrep")
+            .args(["-x", "RustDesk"])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
         if running {
-            let _ = command("osascript").args(["-e", "tell application \"RustDesk\" to quit"]).status();
+            let _ = command("osascript")
+                .args(["-e", "tell application \"RustDesk\" to quit"])
+                .status();
             vec![String::new()]
         } else {
             vec![]
@@ -182,8 +224,14 @@ pub fn start_gui(stopped: &[String]) {
     if cfg!(windows) {
         #[cfg(windows)]
         {
-            let exe = windows_rustdesk_exe()
-                .or_else(|| Some(env_path("ProgramFiles").join("RustDesk").join("RustDesk.exe")).filter(|p| p.exists()));
+            let exe = windows_rustdesk_exe().or_else(|| {
+                Some(
+                    env_path("ProgramFiles")
+                        .join("RustDesk")
+                        .join("RustDesk.exe"),
+                )
+                .filter(|p| p.exists())
+            });
             if let Some(exe) = exe {
                 let mut c = command(&exe.to_string_lossy());
                 if tray {
@@ -207,15 +255,29 @@ pub fn start_gui(stopped: &[String]) {
 pub fn rustdesk_exe() -> Option<PathBuf> {
     #[cfg(windows)]
     {
-        windows_rustdesk_exe().or_else(|| Some(env_path("ProgramFiles").join("RustDesk").join("RustDesk.exe")).filter(|p| p.exists()))
+        windows_rustdesk_exe().or_else(|| {
+            Some(
+                env_path("ProgramFiles")
+                    .join("RustDesk")
+                    .join("RustDesk.exe"),
+            )
+            .filter(|p| p.exists())
+        })
     }
     #[cfg(target_os = "macos")]
     {
-        Some(PathBuf::from("/Applications/RustDesk.app/Contents/MacOS/RustDesk")).filter(|p| p.exists())
+        Some(PathBuf::from(
+            "/Applications/RustDesk.app/Contents/MacOS/RustDesk",
+        ))
+        .filter(|p| p.exists())
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
-        env::var_os("PATH").and_then(|paths| env::split_paths(&paths).map(|d| d.join("rustdesk")).find(|p| p.is_file()))
+        env::var_os("PATH").and_then(|paths| {
+            env::split_paths(&paths)
+                .map(|d| d.join("rustdesk"))
+                .find(|p| p.is_file())
+        })
     }
 }
 
@@ -223,13 +285,21 @@ pub fn rustdesk_exe() -> Option<PathBuf> {
 /// 只改設定檔不會生效，必須透過 `rustdesk --option`（需系統管理員/root）通知它。
 pub fn service_installed() -> bool {
     if cfg!(windows) {
-        command("reg").args(["query", r"HKLM\SYSTEM\CurrentControlSet\Services\RustDesk"]).output().map(|o| o.status.success()).unwrap_or(false)
+        command("reg")
+            .args(["query", r"HKLM\SYSTEM\CurrentControlSet\Services\RustDesk"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
     } else if cfg!(target_os = "macos") {
         std::path::Path::new("/Library/LaunchDaemons/com.carriez.RustDesk_service.plist").exists()
     } else {
-        ["/usr/lib/systemd/system/rustdesk.service", "/etc/systemd/system/rustdesk.service", "/lib/systemd/system/rustdesk.service"]
-            .iter()
-            .any(|p| std::path::Path::new(p).exists())
+        [
+            "/usr/lib/systemd/system/rustdesk.service",
+            "/etc/systemd/system/rustdesk.service",
+            "/lib/systemd/system/rustdesk.service",
+        ]
+        .iter()
+        .any(|p| std::path::Path::new(p).exists())
     }
 }
 
@@ -237,13 +307,23 @@ const NEED_ADMIN_MSG: &str = "privileges required";
 
 /// 透過 `rustdesk --option <key> <value>` 設定執行中的 RustDesk（空字串 = 清除）。
 pub fn rustdesk_set_option(exe: &std::path::Path, key: &str, value: &str) -> Result<(), String> {
-    let out = command(&exe.to_string_lossy()).args(["--option", key, value]).output().map_err(|e| trf("err.run_rustdesk", &[("err", &e.to_string())]))?;
-    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let out = command(&exe.to_string_lossy())
+        .args(["--option", key, value])
+        .output()
+        .map_err(|e| trf("err.run_rustdesk", &[("err", &e.to_string())]))?;
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     if text.to_lowercase().contains(NEED_ADMIN_MSG) {
         return Err(tr("err.rustdesk_needs_admin"));
     }
     if !out.status.success() {
-        return Err(trf("err.option_failed", &[("key", key), ("status", &out.status.to_string())]));
+        return Err(trf(
+            "err.option_failed",
+            &[("key", key), ("status", &out.status.to_string())],
+        ));
     }
     Ok(())
 }
@@ -251,7 +331,10 @@ pub fn rustdesk_set_option(exe: &std::path::Path, key: &str, value: &str) -> Res
 /// 向執行中的 RustDesk 詢問某個 option 目前的值；讀不到（權限或輸出被吞）回傳 None。
 pub fn rustdesk_get_option(key: &str) -> Option<String> {
     let exe = rustdesk_exe()?;
-    let out = command(&exe.to_string_lossy()).args(["--option", key]).output().ok()?;
+    let out = command(&exe.to_string_lossy())
+        .args(["--option", key])
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }
@@ -268,7 +351,11 @@ const TASK_NAME: &str = "rdswitch";
 
 #[cfg(windows)]
 pub fn autostart_enabled() -> bool {
-    command("schtasks").args(["/Query", "/TN", TASK_NAME]).output().map(|o| o.status.success()).unwrap_or(false)
+    command("schtasks")
+        .args(["/Query", "/TN", TASK_NAME])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 #[cfg(windows)]
@@ -277,15 +364,34 @@ pub fn set_autostart(on: bool) -> Result<(), String> {
         let exe = env::current_exe().map_err(|e| e.to_string())?;
         let user = env::var("USERNAME").unwrap_or_default();
         command("schtasks")
-            .args(["/Create", "/TN", TASK_NAME, "/TR", &format!("\"{}\" --minimized", exe.display()), "/SC", "ONLOGON", "/RL", "HIGHEST", "/RU", &user, "/IT", "/F"])
+            .args([
+                "/Create",
+                "/TN",
+                TASK_NAME,
+                "/TR",
+                &format!("\"{}\" --minimized", exe.display()),
+                "/SC",
+                "ONLOGON",
+                "/RL",
+                "HIGHEST",
+                "/RU",
+                &user,
+                "/IT",
+                "/F",
+            ])
             .output()
     } else {
-        command("schtasks").args(["/Delete", "/TN", TASK_NAME, "/F"]).output()
+        command("schtasks")
+            .args(["/Delete", "/TN", TASK_NAME, "/F"])
+            .output()
     }
     .map_err(|e| e.to_string())?;
     if out.status.success() || (!on && !autostart_enabled()) {
         Ok(())
     } else {
-        Err(trf("err.task_failed", &[("err", String::from_utf8_lossy(&out.stderr).trim())]))
+        Err(trf(
+            "err.task_failed",
+            &[("err", String::from_utf8_lossy(&out.stderr).trim())],
+        ))
     }
 }

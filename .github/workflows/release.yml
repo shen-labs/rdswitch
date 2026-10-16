@@ -1,9 +1,10 @@
 name: release
 
+# 只在推送 v* 標籤時發佈。不提供手動觸發：手動執行時 github.ref_name 會是分支名稱，
+# 會用分支名稱當標籤建立草稿 release。
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 jobs:
   build:

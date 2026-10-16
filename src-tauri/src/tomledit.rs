@@ -22,14 +22,21 @@ fn key_re() -> &'static Regex {
 
 fn value_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r#"^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)")"#).unwrap())
+    R.get_or_init(|| {
+        Regex::new(r#"^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)")"#).unwrap()
+    })
 }
 
 fn quote(v: &str) -> String {
     if !v.contains('\'') && !v.contains('\n') {
         format!("'{v}'")
     } else {
-        format!("\"{}\"", v.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n"))
+        format!(
+            "\"{}\"",
+            v.replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n")
+        )
     }
 }
 
@@ -63,7 +70,9 @@ fn split_lines(text: &str) -> Vec<String> {
 /// 回傳 `[options]` 標頭所在行與區段結束行（不含）。
 fn options_range(lines: &[String]) -> Option<(usize, usize)> {
     let start = lines.iter().position(|l| l.trim() == "[options]")?;
-    let end = (start + 1..lines.len()).find(|&i| header_re().is_match(&lines[i])).unwrap_or(lines.len());
+    let end = (start + 1..lines.len())
+        .find(|&i| header_re().is_match(&lines[i]))
+        .unwrap_or(lines.len());
     Some((start, end))
 }
 
@@ -98,7 +107,8 @@ pub fn set_options(text: &str, changes: &[Change]) -> String {
         }
     };
 
-    let mut pending: HashMap<&str, &Option<String>> = changes.iter().map(|c| (c.key, &c.value)).collect();
+    let mut pending: HashMap<&str, &Option<String>> =
+        changes.iter().map(|c| (c.key, &c.value)).collect();
     let mut section: Vec<String> = Vec::new();
     for l in &lines[s + 1..e] {
         if let Some(m) = key_re().captures(l) {
@@ -136,14 +146,21 @@ mod tests {
 custom-rendezvous-server = '192.0.2.10:21116'\nkey = 'abc'\naccess-mode = 'full'\n\n[other]\nx = 1\n";
 
     fn ch(key: &'static str, v: Option<&str>) -> Change {
-        Change { key, value: v.map(String::from) }
+        Change {
+            key,
+            value: v.map(String::from),
+        }
     }
 
     #[test]
     fn replace_add_remove() {
         let out = set_options(
             SAMPLE,
-            &[ch("custom-rendezvous-server", Some("h:21116")), ch("key", None), ch("api-server", Some("http://a"))],
+            &[
+                ch("custom-rendezvous-server", Some("h:21116")),
+                ch("key", None),
+                ch("api-server", Some("http://a")),
+            ],
         );
         let o = get_options(&out);
         assert_eq!(o["custom-rendezvous-server"], "h:21116");
@@ -169,7 +186,10 @@ custom-rendezvous-server = '192.0.2.10:21116'\nkey = 'abc'\naccess-mode = 'full'
 
     #[test]
     fn crlf_input() {
-        let o = get_options(&set_options("[options]\r\nkey = 'a'\r\n", &[ch("key", Some("b"))]));
+        let o = get_options(&set_options(
+            "[options]\r\nkey = 'a'\r\n",
+            &[ch("key", Some("b"))],
+        ));
         assert_eq!(o["key"], "b");
     }
 }

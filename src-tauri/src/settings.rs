@@ -15,7 +15,9 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { language: "auto".into() }
+        Settings {
+            language: "auto".into(),
+        }
     }
 }
 
@@ -24,7 +26,10 @@ fn path() -> PathBuf {
 }
 
 pub fn load() -> Settings {
-    fs::read_to_string(path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+    fs::read_to_string(path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
 }
 
 pub fn save(s: &Settings) -> Result<(), String> {
@@ -32,6 +37,10 @@ pub fn save(s: &Settings) -> Result<(), String> {
     if let Some(dir) = p.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    fs::write(&p, serde_json::to_string_pretty(s).unwrap())
-        .map_err(|e| trf("err.write_failed", &[("path", &p.display().to_string()), ("err", &e.to_string())]))
+    fs::write(&p, serde_json::to_string_pretty(s).unwrap()).map_err(|e| {
+        trf(
+            "err.write_failed",
+            &[("path", &p.display().to_string()), ("err", &e.to_string())],
+        )
+    })
 }

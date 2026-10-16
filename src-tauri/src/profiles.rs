@@ -30,10 +30,22 @@ impl Profile {
     fn changes(&self) -> Vec<Change> {
         let opt = |v: &str| (!v.is_empty()).then(|| v.to_string());
         vec![
-            Change { key: "custom-rendezvous-server", value: opt(&self.server) },
-            Change { key: "relay-server", value: opt(&self.relay) },
-            Change { key: "api-server", value: opt(&self.api) },
-            Change { key: "key", value: opt(&self.key) },
+            Change {
+                key: "custom-rendezvous-server",
+                value: opt(&self.server),
+            },
+            Change {
+                key: "relay-server",
+                value: opt(&self.relay),
+            },
+            Change {
+                key: "api-server",
+                value: opt(&self.api),
+            },
+            Change {
+                key: "key",
+                value: opt(&self.key),
+            },
         ]
     }
 }
@@ -46,12 +58,18 @@ pub fn is_default_name(name: &str) -> bool {
 }
 
 pub fn default_profile() -> Profile {
-    Profile { name: DEFAULT_NAME.into(), ..Default::default() }
+    Profile {
+        name: DEFAULT_NAME.into(),
+        ..Default::default()
+    }
 }
 
 impl Profile {
     fn is_empty_config(&self) -> bool {
-        self.server.is_empty() && self.relay.is_empty() && self.api.is_empty() && self.key.is_empty()
+        self.server.is_empty()
+            && self.relay.is_empty()
+            && self.api.is_empty()
+            && self.key.is_empty()
     }
 }
 
@@ -74,7 +92,15 @@ fn write_private(path: &Path, data: &str) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    fs::write(path, data).map_err(|e| trf("err.write_failed", &[("path", &path.display().to_string()), ("err", &e.to_string())]))?;
+    fs::write(path, data).map_err(|e| {
+        trf(
+            "err.write_failed",
+            &[
+                ("path", &path.display().to_string()),
+                ("err", &e.to_string()),
+            ],
+        )
+    })?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -86,7 +112,10 @@ fn write_private(path: &Path, data: &str) -> Result<(), String> {
 /// 使用者自訂的 profiles（不含內建的 Default）。
 /// 舊版留下的「欄位全空」profile（例如 official）等同 Default，載入時略過。
 pub fn load() -> Result<Vec<Profile>, String> {
-    Ok(load_raw()?.into_iter().filter(|p| !p.is_empty_config() && !is_default_name(&p.name)).collect())
+    Ok(load_raw()?
+        .into_iter()
+        .filter(|p| !p.is_empty_config() && !is_default_name(&p.name))
+        .collect())
 }
 
 /// Default 加上所有自訂 profiles。
@@ -106,19 +135,29 @@ fn load_raw() -> Result<Vec<Profile>, String> {
         return Ok(v);
     }
     // 相容舊格式 {名稱: {server,relay,api,key}}
-    let legacy: HashMap<String, Profile> = serde_json::from_str(&raw).map_err(|e| trf("err.profiles_format", &[("err", &e.to_string())]))?;
-    let mut v: Vec<Profile> = legacy.into_iter().map(|(name, p)| Profile { name, ..p }).collect();
+    let legacy: HashMap<String, Profile> = serde_json::from_str(&raw)
+        .map_err(|e| trf("err.profiles_format", &[("err", &e.to_string())]))?;
+    let mut v: Vec<Profile> = legacy
+        .into_iter()
+        .map(|(name, p)| Profile { name, ..p })
+        .collect();
     v.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(v)
 }
 
 fn save(mut ps: Vec<Profile>) -> Result<(), String> {
     ps.sort_by(|a, b| a.name.cmp(&b.name));
-    write_private(&profiles_path(), &serde_json::to_string_pretty(&ps).unwrap())
+    write_private(
+        &profiles_path(),
+        &serde_json::to_string_pretty(&ps).unwrap(),
+    )
 }
 
 pub fn find(name: &str) -> Result<Profile, String> {
-    all()?.into_iter().find(|p| p.name == name).ok_or_else(|| trf("err.not_found", &[("name", name)]))
+    all()?
+        .into_iter()
+        .find(|p| p.name == name)
+        .ok_or_else(|| trf("err.not_found", &[("name", name)]))
 }
 
 /// 儲存 profile。`old` 為 None 代表新增（名稱不可與現有的重複，避免無聲覆蓋）；
@@ -139,7 +178,10 @@ pub fn save_as(old: Option<&str>, p: Profile) -> Result<(), String> {
             if is_default_name(old) {
                 return Err(trf("err.default_no_edit", &[("name", DEFAULT_NAME)]));
             }
-            let idx = ps.iter().position(|x| x.name == old).ok_or_else(|| trf("err.not_found", &[("name", old)]))?;
+            let idx = ps
+                .iter()
+                .position(|x| x.name == old)
+                .ok_or_else(|| trf("err.not_found", &[("name", old)]))?;
             if p.name != old && exists(&p.name, &ps) {
                 return Err(trf("err.name_exists", &[("name", &p.name)]));
             }
@@ -158,7 +200,10 @@ fn rename_favorite(old: &str, new: &str) -> Result<(), String> {
     let mut fav = load_favorites();
     if let Some(slot) = fav.iter_mut().find(|n| n.as_str() == old) {
         *slot = new.to_string();
-        write_private(&favorites_path(), &serde_json::to_string_pretty(&fav).unwrap())?;
+        write_private(
+            &favorites_path(),
+            &serde_json::to_string_pretty(&fav).unwrap(),
+        )?;
     }
     Ok(())
 }
@@ -180,7 +225,10 @@ fn favorites_path() -> PathBuf {
 }
 
 pub fn load_favorites() -> Vec<String> {
-    fs::read_to_string(favorites_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+    fs::read_to_string(favorites_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
 }
 
 pub fn set_favorite(name: &str, on: bool) -> Result<(), String> {
@@ -192,7 +240,10 @@ pub fn set_favorite(name: &str, on: bool) -> Result<(), String> {
         }
         fav.push(name.to_string());
     }
-    write_private(&favorites_path(), &serde_json::to_string_pretty(&fav).unwrap())
+    write_private(
+        &favorites_path(),
+        &serde_json::to_string_pretty(&fav).unwrap(),
+    )
 }
 
 fn user_config() -> PathBuf {
@@ -218,11 +269,22 @@ fn backup(cfg: &Path, tag: &str) -> Result<(), String> {
     let data = match fs::read(cfg) {
         Ok(d) => d,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(trf("err.backup_failed", &[("path", &cfg.display().to_string()), ("err", &e.to_string())])),
+        Err(e) => {
+            return Err(trf(
+                "err.backup_failed",
+                &[
+                    ("path", &cfg.display().to_string()),
+                    ("err", &e.to_string()),
+                ],
+            ))
+        }
     };
     let dir = platform::app_data_dir().join("backups");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
     fs::write(dir.join(format!("{ts}-{tag}-{CONFIG_NAME}")), data).map_err(|e| e.to_string())
 }
 
@@ -248,7 +310,10 @@ fn apply_via_cli(p: &Profile) -> Result<(), String> {
     // 讀回驗證（讀不到就略過，不誤報失敗）
     if let Some(now) = platform::rustdesk_get_option("custom-rendezvous-server") {
         if now != p.server {
-            return Err(trf("err.mismatch", &[("now", &now), ("expected", &p.server)]));
+            return Err(trf(
+                "err.mismatch",
+                &[("now", &now), ("expected", &p.server)],
+            ));
         }
     }
     Ok(())
@@ -262,15 +327,39 @@ fn apply_via_file(p: &Profile) -> Result<(), String> {
     let old = match fs::read_to_string(&cfg) {
         Ok(s) => s,
         Err(e) if e.kind() == ErrorKind::NotFound => String::new(),
-        Err(e) => return Err(trf("err.read_failed", &[("path", &cfg.display().to_string()), ("err", &e.to_string())])),
+        Err(e) => {
+            return Err(trf(
+                "err.read_failed",
+                &[
+                    ("path", &cfg.display().to_string()),
+                    ("err", &e.to_string()),
+                ],
+            ))
+        }
     };
     backup(&cfg, "user")?;
     if let Some(dir) = cfg.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     let tmp = cfg.with_extension("toml.tmp");
-    fs::write(&tmp, tomledit::set_options(&old, &p.changes())).map_err(|e| trf("err.write_failed", &[("path", &tmp.display().to_string()), ("err", &e.to_string())]))?;
-    fs::rename(&tmp, &cfg).map_err(|e| trf("err.replace_failed", &[("path", &cfg.display().to_string()), ("err", &e.to_string())]))?;
+    fs::write(&tmp, tomledit::set_options(&old, &p.changes())).map_err(|e| {
+        trf(
+            "err.write_failed",
+            &[
+                ("path", &tmp.display().to_string()),
+                ("err", &e.to_string()),
+            ],
+        )
+    })?;
+    fs::rename(&tmp, &cfg).map_err(|e| {
+        trf(
+            "err.replace_failed",
+            &[
+                ("path", &cfg.display().to_string()),
+                ("err", &e.to_string()),
+            ],
+        )
+    })?;
     platform::start_gui(&stopped);
     Ok(())
 }
@@ -280,7 +369,11 @@ mod tests {
     use super::*;
 
     fn p(name: &str, server: &str) -> Profile {
-        Profile { name: name.into(), server: server.into(), ..Default::default() }
+        Profile {
+            name: name.into(),
+            server: server.into(),
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -306,7 +399,13 @@ mod tests {
         for k in ["APPDATA", "XDG_CONFIG_HOME", "HOME", "USERPROFILE"] {
             std::env::set_var(k, &tmp);
         }
-        let names = || all().unwrap().into_iter().map(|p| p.name).collect::<Vec<_>>();
+        let names = || {
+            all()
+                .unwrap()
+                .into_iter()
+                .map(|p| p.name)
+                .collect::<Vec<_>>()
+        };
 
         assert_eq!(names(), ["Default"]); // 一開始只有內建的 Default
 
@@ -367,9 +466,17 @@ mod e2e {
     fn switch_real_profile_and_restore() {
         let name = std::env::var("RDS_E2E_PROFILE").expect("set RDS_E2E_PROFILE");
         let target = find(&name).expect("profile");
-        let opts = fs::read_to_string(user_config()).map(|t| tomledit::get_options(&t)).unwrap_or_default();
+        let opts = fs::read_to_string(user_config())
+            .map(|t| tomledit::get_options(&t))
+            .unwrap_or_default();
         let get = |k: &str| opts.get(k).cloned().unwrap_or_default();
-        let orig = Profile { name: "orig".into(), server: get("custom-rendezvous-server"), relay: get("relay-server"), api: get("api-server"), key: get("key") };
+        let orig = Profile {
+            name: "orig".into(),
+            server: get("custom-rendezvous-server"),
+            relay: get("relay-server"),
+            api: get("api-server"),
+            key: get("key"),
+        };
 
         let r = apply(&target);
         let during = current_server();

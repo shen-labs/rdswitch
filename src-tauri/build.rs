@@ -5,7 +5,8 @@ fn main() {
     // RustDesk 已安裝為系統服務時，切換伺服器必須以系統管理員身分呼叫 `rustdesk --option`。
     if is_windows {
         attrs = attrs.windows_attributes(
-            tauri_build::WindowsAttributes::new().app_manifest(include_str!("windows-admin.manifest")),
+            tauri_build::WindowsAttributes::new()
+                .app_manifest(include_str!("windows-admin.manifest")),
         );
     }
 
