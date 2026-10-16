@@ -27,7 +27,8 @@ impl Lang {
     }
 
     pub fn from_code(code: &str) -> Option<Lang> {
-        ALL.into_iter().find(|l| l.code().eq_ignore_ascii_case(code))
+        ALL.into_iter()
+            .find(|l| l.code().eq_ignore_ascii_case(code))
     }
 
     /// 由系統語系字串（如 `zh-TW`、`zh_CN.UTF-8`、`ja-JP`、`en_US`）對應到支援的語言；不支援的一律用英文。
@@ -35,7 +36,10 @@ impl Lang {
         let l = locale.to_ascii_lowercase().replace('_', "-");
         if l.starts_with("zh") {
             // 繁體：台灣、香港、澳門，或明確標示 Hant
-            if ["tw", "hk", "mo", "hant"].iter().any(|t| l.split(|c| c == '-' || c == '.').any(|p| p == *t)) {
+            if ["tw", "hk", "mo", "hant"]
+                .iter()
+                .any(|t| l.split(['-', '.']).any(|p| p == *t))
+            {
                 Lang::ZhTw
             } else {
                 Lang::ZhCn
@@ -69,7 +73,11 @@ pub fn resolve(setting: &str) -> Lang {
 
 /// 查表；找不到鍵時回傳鍵本身，讓缺漏在畫面上一眼就看得出來。
 pub fn tr(key: &str) -> String {
-    TABLE.iter().find(|(k, _)| *k == key).map(|(_, v)| v[get().idx()].to_string()).unwrap_or_else(|| key.to_string())
+    TABLE
+        .iter()
+        .find(|(k, _)| *k == key)
+        .map(|(_, v)| v[get().idx()].to_string())
+        .unwrap_or_else(|| key.to_string())
 }
 
 /// 查表並代入 `{名稱}` 變數。
@@ -82,6 +90,8 @@ pub fn trf(key: &str, vars: &[(&str, &str)]) -> String {
 }
 
 /// 欄位順序必須與 `ALL` 相同：[zh-TW, en, zh-CN, ja]
+/// 這是對照表，每個鍵的四種語言要上下對齊才容易檢查，所以不交給 rustfmt 重排。
+#[rustfmt::skip]
 const TABLE: &[(&str, [&str; 4])] = &[
     ("tray.current", ["目前：{name}", "Current: {name}", "当前：{name}", "現在：{name}"]),
     ("tray.default_item", ["{name}（官方預設）", "{name} (RustDesk default)", "{name}（官方默认）", "{name}（公式デフォルト）"]),
@@ -224,7 +234,12 @@ mod tests {
             let base = placeholders(vals[0]);
             for (lang, v) in ALL.iter().zip(vals.iter()) {
                 assert!(!v.trim().is_empty(), "{key} 缺少 {} 翻譯", lang.code());
-                assert_eq!(placeholders(v), base, "{key} 的 {} 變數與繁中不一致：{v}", lang.code());
+                assert_eq!(
+                    placeholders(v),
+                    base,
+                    "{key} 的 {} 變數與繁中不一致：{v}",
+                    lang.code()
+                );
             }
         }
     }
@@ -232,10 +247,23 @@ mod tests {
     #[test]
     fn locale_mapping() {
         for (loc, want) in [
-            ("zh-TW", Lang::ZhTw), ("zh_TW.UTF-8", Lang::ZhTw), ("zh-Hant-TW", Lang::ZhTw), ("zh-HK", Lang::ZhTw), ("zh-Hant", Lang::ZhTw),
-            ("zh-CN", Lang::ZhCn), ("zh_CN.UTF-8", Lang::ZhCn), ("zh-Hans-CN", Lang::ZhCn), ("zh-SG", Lang::ZhCn), ("zh", Lang::ZhCn),
-            ("ja-JP", Lang::Ja), ("ja_JP.UTF-8", Lang::Ja),
-            ("en-US", Lang::En), ("en_GB", Lang::En), ("de-DE", Lang::En), ("", Lang::En), ("C", Lang::En),
+            ("zh-TW", Lang::ZhTw),
+            ("zh_TW.UTF-8", Lang::ZhTw),
+            ("zh-Hant-TW", Lang::ZhTw),
+            ("zh-HK", Lang::ZhTw),
+            ("zh-Hant", Lang::ZhTw),
+            ("zh-CN", Lang::ZhCn),
+            ("zh_CN.UTF-8", Lang::ZhCn),
+            ("zh-Hans-CN", Lang::ZhCn),
+            ("zh-SG", Lang::ZhCn),
+            ("zh", Lang::ZhCn),
+            ("ja-JP", Lang::Ja),
+            ("ja_JP.UTF-8", Lang::Ja),
+            ("en-US", Lang::En),
+            ("en_GB", Lang::En),
+            ("de-DE", Lang::En),
+            ("", Lang::En),
+            ("C", Lang::En),
         ] {
             assert_eq!(Lang::from_locale(loc), want, "{loc}");
         }
@@ -255,9 +283,15 @@ mod tests {
     fn missing_key_is_visible_and_vars_are_substituted() {
         assert_eq!(tr("no.such.key"), "no.such.key");
         set(Lang::En);
-        assert_eq!(trf("toast.switched", &[("name", "Lab")]), "Switched to “Lab”");
+        assert_eq!(
+            trf("toast.switched", &[("name", "Lab")]),
+            "Switched to “Lab”"
+        );
         set(Lang::Ja);
-        assert_eq!(trf("toast.switched", &[("name", "Lab")]), "「Lab」に切り替えました");
+        assert_eq!(
+            trf("toast.switched", &[("name", "Lab")]),
+            "「Lab」に切り替えました"
+        );
         set(Lang::ZhTw); // 還原預設，避免影響其他測試
     }
 }

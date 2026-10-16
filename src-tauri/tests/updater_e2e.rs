@@ -45,7 +45,13 @@ fn fetch_update(
     require_signed_version: bool,
     payload: &[u8],
     signature: &str,
-) -> Result<(tauri::App<tauri::test::MockRuntime>, tauri_plugin_updater::Update), String> {
+) -> Result<
+    (
+        tauri::App<tauri::test::MockRuntime>,
+        tauri_plugin_updater::Update,
+    ),
+    String,
+> {
     let server = tiny_http::Server::http("127.0.0.1:0").expect("啟動假伺服器");
     let port = server.server_addr().to_ip().expect("伺服器位址").port();
     let manifest = json!({
@@ -54,7 +60,13 @@ fn fetch_update(
         "pub_date": "2026-01-01T00:00:00Z",
         "platforms": { "windows-x86_64": { "signature": signature, "url": format!("http://127.0.0.1:{port}/update.exe") } }
     });
-    serve(server, vec![("/latest.json", manifest.to_string().into_bytes()), ("/update.exe", payload.to_vec())]);
+    serve(
+        server,
+        vec![
+            ("/latest.json", manifest.to_string().into_bytes()),
+            ("/update.exe", payload.to_vec()),
+        ],
+    );
 
     let mut ctx = mock_context(noop_assets());
     ctx.package_info_mut().version = "0.0.1".parse().unwrap(); // 讓宣告的版本比「目前版本」新
@@ -67,10 +79,18 @@ fn fetch_update(
             "requireSignedVersion": require_signed_version,
         }),
     );
-    let app = mock_builder().plugin(tauri_plugin_updater::Builder::new().build()).build(ctx).map_err(|e| e.to_string())?;
+    let app = mock_builder()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .build(ctx)
+        .map_err(|e| e.to_string())?;
     let handle = app.handle().clone();
     let update = tauri::async_runtime::block_on(async move {
-        handle.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| format!("check: {e} :: {e:?}"))
+        handle
+            .updater()
+            .map_err(|e| e.to_string())?
+            .check()
+            .await
+            .map_err(|e| format!("check: {e} :: {e:?}"))
     })?
     .ok_or_else(|| "check: 沒有可用的更新".to_string())?;
     Ok((app, update))
@@ -78,10 +98,14 @@ fn fetch_update(
 
 #[test]
 fn signed_update_is_verified_and_tampering_is_rejected() {
-    let (Some(exe), Some(pub_path), Some(other_pub_path)) =
-        (env_path("RDS_UPDATER_TEST_EXE"), env_path("RDS_UPDATER_TEST_PUB"), env_path("RDS_UPDATER_TEST_OTHER_PUB"))
-    else {
-        eprintln!("略過：未設定 RDS_UPDATER_TEST_EXE / RDS_UPDATER_TEST_PUB / RDS_UPDATER_TEST_OTHER_PUB");
+    let (Some(exe), Some(pub_path), Some(other_pub_path)) = (
+        env_path("RDS_UPDATER_TEST_EXE"),
+        env_path("RDS_UPDATER_TEST_PUB"),
+        env_path("RDS_UPDATER_TEST_OTHER_PUB"),
+    ) else {
+        eprintln!(
+            "略過：未設定 RDS_UPDATER_TEST_EXE / RDS_UPDATER_TEST_PUB / RDS_UPDATER_TEST_OTHER_PUB"
+        );
         return;
     };
     let payload = std::fs::read(&exe).expect("讀取安裝檔");
@@ -93,7 +117,8 @@ fn signed_update_is_verified_and_tampering_is_rejected() {
     // verify() 做的檢查與 download()/install() 完全相同（簽章 + 簽章綁定的版本），只是不發請求。
 
     // 1. 正常：簽章正確、版本一致 → 通過
-    let (_app, update) = fetch_update(&pubkey, signed_version, true, &payload, &sig).expect("check 應該找到更新");
+    let (_app, update) =
+        fetch_update(&pubkey, signed_version, true, &payload, &sig).expect("check 應該找到更新");
     assert_eq!(update.version, signed_version);
     update.verify(&payload).expect("正常的更新應該通過驗證");
     println!("[1] 正常更新：通過驗證（{} bytes）", payload.len());
@@ -102,19 +127,27 @@ fn signed_update_is_verified_and_tampering_is_rejected() {
     let mut tampered = payload.clone();
     let mid = tampered.len() / 2;
     tampered[mid] ^= 0x01;
-    let err = update.verify(&tampered).expect_err("被竄改的更新必須被拒絕");
+    let err = update
+        .verify(&tampered)
+        .expect_err("被竄改的更新必須被拒絕");
     println!("[2] 竄改一個位元組：被拒絕 -> {err}");
 
     // 3. 用不相干的金鑰驗證（等於簽章不是我們的金鑰簽的）→ 必須被拒絕
-    let (_app3, update3) = fetch_update(&other_pub, signed_version, true, &payload, &sig).expect("check 應該找到更新");
-    let err = update3.verify(&payload).expect_err("簽章金鑰不符必須被拒絕");
+    let (_app3, update3) =
+        fetch_update(&other_pub, signed_version, true, &payload, &sig).expect("check 應該找到更新");
+    let err = update3
+        .verify(&payload)
+        .expect_err("簽章金鑰不符必須被拒絕");
     println!("[3] 錯誤的金鑰：被拒絕 -> {err}");
 
     // 4. 降級攻擊：清單（本身沒有簽章）宣告很高的版本號，卻配上真實但舊版的檔案與合法簽章。
     //    只要簽章帶有版本資訊，版本不符就一律被拒絕（與 requireSignedVersion 無關）
     for flag in [true, false] {
-        let (_a, u) = fetch_update(&pubkey, "9.9.9", flag, &payload, &sig).expect("check 應該找到更新");
-        let err = u.verify(&payload).expect_err("版本號與簽章綁定的版本不符必須被拒絕");
+        let (_a, u) =
+            fetch_update(&pubkey, "9.9.9", flag, &payload, &sig).expect("check 應該找到更新");
+        let err = u
+            .verify(&payload)
+            .expect_err("版本號與簽章綁定的版本不符必須被拒絕");
         println!("[4] 假造高版本號（降級攻擊，requireSignedVersion={flag}）：被拒絕 -> {err}");
     }
 
@@ -126,12 +159,20 @@ fn signed_update_is_verified_and_tampering_is_rejected() {
         return;
     };
     let unv_payload = std::fs::read(&unv).expect("讀取副本");
-    let unv_sig = std::fs::read_to_string(format!("{}.sig", unv.display())).expect("讀取副本的 .sig");
-    let (_a, off) = fetch_update(&pubkey, "9.9.9", false, &unv_payload, &unv_sig).expect("check 應該找到更新");
-    off.verify(&unv_payload).expect("旗標關閉：沒有版本資訊的簽章會繞過版本檢查");
-    println!("[5a] 沒有版本資訊的簽章 + 假造版本號 + 旗標關閉：通過驗證（這就是旗標要防的殘留風險）");
-    let (_a, on) = fetch_update(&pubkey, "9.9.9", true, &unv_payload, &unv_sig).expect("check 應該找到更新");
-    let err = on.verify(&unv_payload).expect_err("旗標開啟：沒有版本資訊的簽章必須被拒絕");
+    let unv_sig =
+        std::fs::read_to_string(format!("{}.sig", unv.display())).expect("讀取副本的 .sig");
+    let (_a, off) =
+        fetch_update(&pubkey, "9.9.9", false, &unv_payload, &unv_sig).expect("check 應該找到更新");
+    off.verify(&unv_payload)
+        .expect("旗標關閉：沒有版本資訊的簽章會繞過版本檢查");
+    println!(
+        "[5a] 沒有版本資訊的簽章 + 假造版本號 + 旗標關閉：通過驗證（這就是旗標要防的殘留風險）"
+    );
+    let (_a, on) =
+        fetch_update(&pubkey, "9.9.9", true, &unv_payload, &unv_sig).expect("check 應該找到更新");
+    let err = on
+        .verify(&unv_payload)
+        .expect_err("旗標開啟：沒有版本資訊的簽章必須被拒絕");
     println!("[5b] 同樣的情況 + 旗標開啟：被拒絕 -> {err}");
 }
 
@@ -145,17 +186,31 @@ fn download_transport_works_with_a_small_payload() {
     };
     let pubkey = std::fs::read_to_string(pub_path).expect("公鑰");
     let tiny = b"not a real installer".to_vec();
-    let (_app, update) = fetch_update(&pubkey, "9.9.9", false, &tiny, "bm90IGEgcmVhbCBzaWduYXR1cmU=").expect("check");
-    let err = tauri::async_runtime::block_on(update.download(|_, _| {}, || {})).expect_err("沒有合法簽章的檔案不可能通過");
+    let (_app, update) = fetch_update(
+        &pubkey,
+        "9.9.9",
+        false,
+        &tiny,
+        "bm90IGEgcmVhbCBzaWduYXR1cmU=",
+    )
+    .expect("check");
+    let err = tauri::async_runtime::block_on(update.download(|_, _| {}, || {}))
+        .expect_err("沒有合法簽章的檔案不可能通過");
     println!("小檔案下載結果：{err}");
     let msg = err.to_string().to_lowercase();
-    assert!(!msg.contains("decoding") && !msg.contains("network") && !msg.contains("timed out"), "傳輸本身失敗：{err}");
+    assert!(
+        !msg.contains("decoding") && !msg.contains("network") && !msg.contains("timed out"),
+        "傳輸本身失敗：{err}"
+    );
 }
 
 /// 完整的端到端：透過本機伺服器下載整個簽章過的安裝檔，驗證簽章，內容必須與原檔逐位元組相同。
 #[test]
 fn full_download_of_the_signed_installer_verifies() {
-    let (Some(exe), Some(pub_path)) = (env_path("RDS_UPDATER_TEST_EXE"), env_path("RDS_UPDATER_TEST_PUB")) else {
+    let (Some(exe), Some(pub_path)) = (
+        env_path("RDS_UPDATER_TEST_EXE"),
+        env_path("RDS_UPDATER_TEST_PUB"),
+    ) else {
         eprintln!("略過：未設定 RDS_UPDATER_TEST_EXE / RDS_UPDATER_TEST_PUB");
         return;
     };
@@ -163,9 +218,14 @@ fn full_download_of_the_signed_installer_verifies() {
     let sig = std::fs::read_to_string(format!("{}.sig", exe.display())).expect("讀取 .sig");
     let pubkey = std::fs::read_to_string(pub_path).expect("公鑰");
 
-    let (_app, update) = fetch_update(&pubkey, env!("CARGO_PKG_VERSION"), true, &payload, &sig).expect("check 應該找到更新");
+    let (_app, update) = fetch_update(&pubkey, env!("CARGO_PKG_VERSION"), true, &payload, &sig)
+        .expect("check 應該找到更新");
     let mut chunks = 0usize;
-    let got = tauri::async_runtime::block_on(update.download(|_, _| chunks += 1, || {})).expect("完整下載並驗證簽章");
+    let got = tauri::async_runtime::block_on(update.download(|_, _| chunks += 1, || {}))
+        .expect("完整下載並驗證簽章");
     assert_eq!(got, payload, "下載內容必須與簽章過的安裝檔完全一致");
-    println!("完整下載：{} bytes（{chunks} 個區塊）簽章驗證通過，與原檔一致", got.len());
+    println!(
+        "完整下載：{} bytes（{chunks} 個區塊）簽章驗證通過，與原檔一致",
+        got.len()
+    );
 }

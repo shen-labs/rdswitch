@@ -11,7 +11,10 @@ use i18n::{tr, trf};
 use profiles::Profile;
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::menu::{CheckMenuItem, CheckMenuItemBuilder, IsMenuItem, Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{
+    CheckMenuItem, CheckMenuItemBuilder, IsMenuItem, Menu, MenuBuilder, MenuItemBuilder,
+    SubmenuBuilder,
+};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 #[cfg(not(windows))]
@@ -36,7 +39,13 @@ fn show_window(app: &AppHandle) {
 }
 
 fn toast(app: &AppHandle, ok: bool, msg: impl Into<String>) {
-    let _ = app.emit("toast", Toast { ok, msg: msg.into() });
+    let _ = app.emit(
+        "toast",
+        Toast {
+            ok,
+            msg: msg.into(),
+        },
+    );
     if !ok {
         show_window(app); // 失敗時一定要讓使用者看到
     }
@@ -52,7 +61,11 @@ fn active_name(ps: &[Profile]) -> Option<String> {
 fn current_label(ps: &[Profile]) -> String {
     active_name(ps).unwrap_or_else(|| {
         let s = profiles::current_server();
-        if s.is_empty() { tr("tray.official") } else { s }
+        if s.is_empty() {
+            tr("tray.official")
+        } else {
+            s
+        }
     })
 }
 
@@ -83,8 +96,16 @@ fn set_autostart_inner(app: &AppHandle, enabled: bool) -> Result<(), String> {
     }
 }
 
-fn profile_item(app: &AppHandle, p: &Profile, active: &Option<String>) -> tauri::Result<CheckMenuItem<Wry>> {
-    let label = if profiles::is_default_name(&p.name) { trf("tray.default_item", &[("name", &p.name)]) } else { p.name.clone() };
+fn profile_item(
+    app: &AppHandle,
+    p: &Profile,
+    active: &Option<String>,
+) -> tauri::Result<CheckMenuItem<Wry>> {
+    let label = if profiles::is_default_name(&p.name) {
+        trf("tray.default_item", &[("name", &p.name)])
+    } else {
+        p.name.clone()
+    };
     CheckMenuItemBuilder::with_id(format!("use:{}", p.name), label)
         .checked(active.as_deref() == Some(p.name.as_str()))
         .build(app)
@@ -94,16 +115,31 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let ps = profiles::all().unwrap_or_default();
     let active = active_name(&ps);
     let fav = profiles::load_favorites();
-    let (favs, others): (Vec<&Profile>, Vec<&Profile>) = ps.iter().partition(|p| fav.contains(&p.name));
+    let (favs, others): (Vec<&Profile>, Vec<&Profile>) =
+        ps.iter().partition(|p| fav.contains(&p.name));
 
-    let fav_items = favs.iter().map(|p| profile_item(app, p, &active)).collect::<tauri::Result<Vec<_>>>()?;
-    let other_items = others.iter().map(|p| profile_item(app, p, &active)).collect::<tauri::Result<Vec<_>>>()?;
+    let fav_items = favs
+        .iter()
+        .map(|p| profile_item(app, p, &active))
+        .collect::<tauri::Result<Vec<_>>>()?;
+    let other_items = others
+        .iter()
+        .map(|p| profile_item(app, p, &active))
+        .collect::<tauri::Result<Vec<_>>>()?;
 
     let update_item = match updater::pending_info(app) {
-        Some(u) => Some(MenuItemBuilder::with_id("update", trf("tray.update", &[("version", &u.version)])).build(app)?),
+        Some(u) => Some(
+            MenuItemBuilder::with_id("update", trf("tray.update", &[("version", &u.version)]))
+                .build(app)?,
+        ),
         None => None,
     };
-    let header = MenuItemBuilder::with_id("current", trf("tray.current", &[("name", &current_label(&ps))])).enabled(false).build(app)?;
+    let header = MenuItemBuilder::with_id(
+        "current",
+        trf("tray.current", &[("name", &current_label(&ps))]),
+    )
+    .enabled(false)
+    .build(app)?;
     let mut mb = MenuBuilder::new(app);
     if let Some(it) = &update_item {
         mb = mb.item(it).separator();
@@ -120,13 +156,20 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             mb = mb.item(it);
         }
         if !other_items.is_empty() {
-            let refs: Vec<&dyn IsMenuItem<Wry>> = other_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
-            let sub = SubmenuBuilder::new(app, tr("tray.more")).items(&refs).build()?;
+            let refs: Vec<&dyn IsMenuItem<Wry>> = other_items
+                .iter()
+                .map(|i| i as &dyn IsMenuItem<Wry>)
+                .collect();
+            let sub = SubmenuBuilder::new(app, tr("tray.more"))
+                .items(&refs)
+                .build()?;
             mb = mb.separator().item(&sub);
         }
     }
 
-    let autostart = CheckMenuItemBuilder::with_id("autostart", tr("tray.autostart")).checked(autostart_enabled(app)).build(app)?;
+    let autostart = CheckMenuItemBuilder::with_id("autostart", tr("tray.autostart"))
+        .checked(autostart_enabled(app))
+        .build(app)?;
 
     mb.separator()
         .text("manage", tr("tray.open"))
@@ -228,14 +271,22 @@ fn get_state(app: AppHandle) -> Result<State, String> {
             let fav = profiles::load_favorites();
             profiles::all()?
                 .into_iter()
-                .map(|p| ProfileView { builtin: profiles::is_default_name(&p.name), favorite: fav.contains(&p.name), profile: p })
+                .map(|p| ProfileView {
+                    builtin: profiles::is_default_name(&p.name),
+                    favorite: fav.contains(&p.name),
+                    profile: p,
+                })
                 .collect()
         },
     })
 }
 
 #[tauri::command]
-fn save_profile(app: AppHandle, mut profile: Profile, old_name: Option<String>) -> Result<(), String> {
+fn save_profile(
+    app: AppHandle,
+    mut profile: Profile,
+    old_name: Option<String>,
+) -> Result<(), String> {
     profile.name = profile.name.trim().to_string();
     if profile.name.is_empty() {
         return Err(tr("err.name_required"));
@@ -274,12 +325,17 @@ fn parse_text(text: String) -> Result<Profile, String> {
 /// 檢查各伺服器的連線狀態（TCP）。空字串（Default）不檢查。
 #[tauri::command]
 async fn check_servers(servers: Vec<String>) -> Result<Vec<probe::Reach>, String> {
-    let mut uniq: Vec<String> = servers.into_iter().filter(|s| !s.trim().is_empty()).collect();
+    let mut uniq: Vec<String> = servers
+        .into_iter()
+        .filter(|s| !s.trim().is_empty())
+        .collect();
     uniq.sort();
     uniq.dedup();
-    tauri::async_runtime::spawn_blocking(move || probe::probe_all(uniq, std::time::Duration::from_secs(3)))
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        probe::probe_all(uniq, std::time::Duration::from_secs(3))
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// 設定語言：`auto` 跟隨系統，或指定語言代碼。立即生效並重建系統匣選單。
@@ -288,7 +344,9 @@ fn set_language(app: AppHandle, lang: String) -> Result<(), String> {
     if lang != "auto" && i18n::Lang::from_code(&lang).is_none() {
         return Err(format!("unsupported language: {lang}"));
     }
-    settings::save(&settings::Settings { language: lang.clone() })?;
+    settings::save(&settings::Settings {
+        language: lang.clone(),
+    })?;
     i18n::set(i18n::resolve(&lang));
     refresh_tray(&app);
     Ok(())
@@ -320,12 +378,18 @@ pub fn run() {
     // single-instance 必須最先註冊：再次啟動時直接叫出既有視窗
     #[allow(unused_mut)] // Windows 不註冊 autostart plugin，不會重新指派
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_window(app)
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updater::Pending::default());
     #[cfg(not(windows))]
     {
-        builder = builder.plugin(tauri_plugin_autostart::Builder::new().args(["--minimized"]).build());
+        builder = builder.plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args(["--minimized"])
+                .build(),
+        );
     }
     builder
         .invoke_handler(tauri::generate_handler![
@@ -357,7 +421,12 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false) // 左鍵開主視窗，右鍵才開選單（Linux 不支援，選單仍可用）
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
                         show_window(tray.app_handle());
                     }
                 })
