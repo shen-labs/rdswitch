@@ -3,3 +3,9 @@ src-tauri/target/
 src-tauri/gen/
 dist/
 .tools/
+
+# 簽章私鑰與憑證：絕對不可提交（金鑰請放在專案資料夾之外，例如 ~/.tauri/）
+*.key
+*.pem
+*.p12
+*.pfx

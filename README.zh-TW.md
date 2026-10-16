@@ -65,7 +65,7 @@ Windows 版本帶有 `requireAdministrator` manifest，啟動時會跳 UAC。同
 - 啟動後幾秒、之後每 6 小時，程式會向發佈來源查詢是否有較新的版本。有的話，視窗上方會出現橫幅，顯示新版本與更新內容。**沒有你的點選就不會安裝任何東西**：選「立即更新」（下載、驗證簽章、安裝，然後程式重新啟動），或選「稍後」（收起橫幅，下次啟動才會再提醒）。
 - 每個更新都有簽章。程式只會安裝簽章與內嵌公鑰相符的更新；簽章不正確的更新會被拒絕。發佈清單本身（`latest.json`）*沒有*簽章，所以程式也要求簽章裡帶有「簽章時的版本號」（`requireSignedVersion`），並在它與清單宣告的版本不一致時拒絕更新。這能擋下偽造的清單把「很高的版本號」配上「舊版、真的有簽章但已過時」的安裝檔。
 - 檢查更新只會透過 HTTPS 連到設定的發佈來源（GitHub Releases），沒有任何遙測。
-- 在維護者完成設定之前，**更新功能是停用的**（設定中會顯示「尚未設定更新來源」）。見[發佈與啟用更新](#發佈與啟用更新)。
+- 只有在 `plugins.updater.pubkey` 與 `plugins.updater.endpoints` 都設定好時，更新功能才會運作；本儲存庫兩者都已設定，所以官方版本會檢查更新。如果缺任何一項（例如 fork 後還沒設定自己的金鑰），更新功能會維持關閉，設定中會顯示「尚未設定更新來源」。見[發佈與啟用更新](#發佈與啟用更新)。
 
 ## 隱私
 
@@ -108,8 +108,8 @@ RDS_E2E_PROFILE=<已存在的 profile 名稱> cargo test -- --ignored --nocaptur
 
 推送 `v*` tag 時，`.github/workflows/release.yml` 會為三個平台編譯安裝檔。要啟用應用程式內更新，維護者需要：
 
-1. 產生簽章金鑰組（只做一次）：`npx tauri signer generate -w ~/.tauri/rdswitch.key`。**絕對不要提交私鑰。**私鑰遺失後，既有的安裝就無法再更新。
-2. 把**公鑰**填入 `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`。
+1. 產生簽章金鑰組（只做一次），要放在**專案資料夾之外**，並在一般終端機執行（它會要你設定密碼）：`npx tauri signer generate -w ~/.tauri/rdswitch.key`。**絕對不要提交私鑰**（`*.key` 已加入 `.gitignore` 當作保險）。私鑰遺失後，既有的安裝就無法再更新。
+2. 把**公鑰**（`rdswitch.key.pub`）填入 `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`。本儲存庫已經填入官方發佈金鑰的公鑰；fork 的人必須用自己的。
 3. `plugins.updater.endpoints` 已經指向 `https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json`。如果你 fork 這個專案，請改成你自己的儲存庫。
 4. 在儲存庫新增 secrets：`TAURI_SIGNING_PRIVATE_KEY`（金鑰內容），若有設定密碼則加上 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。
 5. 更新版本號（`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`），推送 `v*` tag，並**發佈**工作流程建立的草稿 release。用戶端只看得到已發佈、非草稿、非預先發行的 release。

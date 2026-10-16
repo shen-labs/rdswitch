@@ -35,6 +35,8 @@ regex = "1"
 tauri = { version = "2", features = ["test"] }
 # 更新整合測試用的本機假伺服器（成熟的套件，避免自己手寫 socket 收尾的問題）
 tiny_http = "0.12"
+# 驗證出貨設定裡的公鑰格式（更新外掛本來就依賴它，這裡只是在測試中直接使用）
+minisign-verify = "0.3"
 
 # Windows 的開機自動啟動改用排程工作（見 platform.rs），其他平台才用 plugin
 [target.'cfg(not(windows))'.dependencies]
