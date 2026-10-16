@@ -353,7 +353,7 @@ pub fn run() {
             let menu = build_menu(&handle)?;
             TrayIconBuilder::with_id(TRAY_ID)
                 .icon(app.default_window_icon().expect("missing app icon").clone())
-                .tooltip("RustDesk Server Switcher")
+                .tooltip("rdswitch")
                 .menu(&menu)
                 .show_menu_on_left_click(false) // 左鍵開主視窗，右鍵才開選單（Linux 不支援，選單仍可用）
                 .on_tray_icon_event(|tray, event| {

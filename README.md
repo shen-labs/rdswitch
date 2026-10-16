@@ -1,4 +1,4 @@
-# RustDesk Server Switcher
+# rdswitch
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -153,7 +153,7 @@ To add a language: add it to `Lang`/`ALL`/`TABLE` in `i18n.rs`, to `LANGS`/`DICT
 
 ## Relationship to RustDesk
 
-- This is an independent, unofficial tool. "RustDesk" is the name of a project and product owned by others; this project does not use RustDesk's logo or artwork. I could not find a published RustDesk trademark policy, so the absence of a rule is not a grant of permission — if you distribute this under a name starting with "RustDesk", consider whether that could suggest an affiliation, or ask the RustDesk team.
+- This is an independent, unofficial tool. "RustDesk" is the name of a project and product owned by others; this project does not use RustDesk's logo or artwork. It is deliberately named `rdswitch` rather than after RustDesk, and the name "RustDesk" appears only to say what the tool works with. I could not find a published RustDesk trademark policy, so the absence of a rule is not a grant of permission; if you are unsure, ask the RustDesk team.
 - RustDesk's client is released under the AGPL-3.0. This project contains none of its source code; it only edits RustDesk's configuration, calls its command line (`rustdesk --option`), and sends one small packet to servers you configured. This is not legal advice.
 - `rustdesk --option <key> <value>` is what makes a switch take effect when RustDesk runs as a service, but the public client-configuration documentation only describes `rustdesk --config <string>`; I could not find `--option` documented. It works with the versions tested so far, but it is not a documented interface and may change.
 

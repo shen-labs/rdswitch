@@ -56,7 +56,7 @@ jobs:
           # APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "RustDesk Server Switcher ${{ github.ref_name }}"
+          releaseName: "rdswitch ${{ github.ref_name }}"
           releaseDraft: true
           # tauri.release.conf.json 開啟 createUpdaterArtifacts：產生 .sig 與 latest.json，供應用程式內更新使用
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

@@ -1,4 +1,4 @@
-# RustDesk Server Switcher
+# rdswitch
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -153,7 +153,7 @@ src-tauri/windows-admin.manifest   Windows 以系統管理員執行
 
 ## 與 RustDesk 的關係
 
-- 這是獨立、非官方的工具。「RustDesk」是他人擁有的專案與產品名稱；本專案沒有使用 RustDesk 的標誌或美術素材。我找不到 RustDesk 公開的商標使用規定，但「沒有規定」不等於「允許」——如果你要散佈以「RustDesk」開頭的名稱，請考慮它是否會讓人誤以為有隸屬關係，或先詢問 RustDesk 團隊。
+- 這是獨立、非官方的工具。「RustDesk」是他人擁有的專案與產品名稱；本專案沒有使用 RustDesk 的標誌或美術素材，名稱刻意取為 `rdswitch` 而不是以 RustDesk 命名，「RustDesk」只用來說明這個工具搭配的對象。我找不到 RustDesk 公開的商標使用規定，但「沒有規定」不等於「允許」；如果不確定，請詢問 RustDesk 團隊。
 - RustDesk 用戶端以 AGPL-3.0 授權釋出。本專案不包含它的任何原始碼；只是修改 RustDesk 的設定、呼叫它的命令列（`rustdesk --option`），並對你設定的伺服器送出一個很小的封包。這不是法律意見。
 - RustDesk 以服務執行時，`rustdesk --option <key> <value>` 是讓切換生效的關鍵，但官方公開的用戶端設定文件只描述了 `rustdesk --config <字串>`，我找不到 `--option` 的文件。它在目前測試過的版本可以運作，但不是有文件保證的介面，之後可能改變。
 
