@@ -7,6 +7,18 @@
 > **非官方專案。** 本專案與 RustDesk 無任何隸屬、背書或贊助關係。
 > 狀態：目前只在 Windows 驗證過，詳見[已知限制](#已知限制)。
 
+## 下載
+
+到 [Releases](https://github.com/shen-labs/rdswitch/releases/latest) 頁面下載最新版，依系統選擇檔案：
+
+| 系統 | 檔案 | 備註 |
+|---|---|---|
+| Windows | `rdswitch_<版本>_x64-setup.exe` | 每位使用者各自安裝。未做程式碼簽署，SmartScreen 會出現警告。 |
+| macOS | `rdswitch_<版本>_universal.dmg` | Intel 與 Apple 晶片通用。未經公證，Gatekeeper 會出現警告。尚未在實體 Mac 上測試。 |
+| Linux | `.deb`（Debian/Ubuntu）、`.rpm`（Fedora/RHEL）、`.AppImage`（其他） | 尚未在實體機器上測試。 |
+
+`.sig` 檔是應用程式內更新使用的簽章，不需要下載。
+
 ## 功能
 
 - **一鍵切換**：從系統匣選單或主視窗切換。每個 profile 包含 ID 伺服器、中繼伺服器、API 伺服器與公鑰；欄位留空代表「RustDesk 預設」。

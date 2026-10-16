@@ -7,6 +7,18 @@ A small system-tray app for switching between [RustDesk](https://rustdesk.com) s
 > **Unofficial.** This project is not affiliated with, endorsed by, or sponsored by RustDesk.
 > Status: only verified on Windows so far — see [Known limitations](#known-limitations).
 
+## Download
+
+Get the latest build from the [Releases](https://github.com/shen-labs/rdswitch/releases/latest) page and pick the file for your system:
+
+| System | File | Notes |
+|---|---|---|
+| Windows | `rdswitch_<version>_x64-setup.exe` | Per-user installer. Not code-signed, so SmartScreen will warn. |
+| macOS | `rdswitch_<version>_universal.dmg` | Intel and Apple silicon. Not notarized, so Gatekeeper will warn. Not tested on a real Mac. |
+| Linux | `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL), `.AppImage` (others) | Not tested on a real machine. |
+
+The `.sig` files are update signatures used by the in-app updater; you do not need them.
+
 ## Features
 
 - **One-click switching** from the tray menu or the main window. Each profile holds an ID server, relay server, API server and public key; empty fields mean "RustDesk default".
