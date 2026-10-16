@@ -93,7 +93,7 @@ npm run tauri dev                 # 開發（Windows 需在系統管理員終端
 cargo test --locked --manifest-path src-tauri/Cargo.toml
 node scripts/check-i18n.mjs      # 前端翻譯字典的一致性
 node scripts/check-version.mjs   # 五個檔案的版本號必須一致
-npm run tauri build               # 產生安裝檔：nsis/msi、dmg、deb/AppImage
+npm run tauri build               # 產生安裝檔：nsis、dmg、deb/rpm/AppImage
 ```
 
 一般的 `cargo test` 不會碰真實的 RustDesk。下面的端到端驗證**會暫時改動真實的 RustDesk 設定**，且需要系統管理員／root：

@@ -84,8 +84,8 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           # 由 GitHub 從合併的 PR 自動產生發佈說明；自動更新的橫幅會顯示這份內容
           generateReleaseNotes: true
-          # Windows 同時有 MSI 與 NSIS 安裝檔時，latest.json 預設會指向 MSI；
-          # 但程式是用 NSIS 安裝的，拿 MSI 更新會裝成另一份獨立的程式，所以要指定 NSIS
+          # 目前只發佈 NSIS（tauri.conf.json 的 bundle.targets 不含 msi）。
+          # 保險：若日後加回 MSI，latest.json 預設會指向 MSI，拿它更新會裝成另一份獨立的程式，所以固定指定 NSIS
           updaterJsonPreferNsis: true
           # tauri.release.conf.json 開啟 createUpdaterArtifacts：產生 .sig 與 latest.json，供應用程式內更新使用
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

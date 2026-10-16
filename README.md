@@ -93,7 +93,7 @@ npm run tauri dev                 # development (on Windows, run from an elevate
 cargo test --locked --manifest-path src-tauri/Cargo.toml
 node scripts/check-i18n.mjs      # front-end translation consistency
 node scripts/check-version.mjs   # the five version numbers must agree
-npm run tauri build               # installers: nsis/msi, dmg, deb/AppImage
+npm run tauri build               # installers: nsis, dmg, deb/rpm/AppImage
 ```
 
 `cargo test` never touches a real RustDesk installation. The end-to-end checks below **temporarily change your real RustDesk settings** and need administrator/root:
