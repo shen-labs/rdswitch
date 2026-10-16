@@ -6,8 +6,15 @@ on:
   push:
     tags: ["v*"]
 
+# 最小權限：整個流程預設唯讀，只有發佈的作業才加上寫入。
+# 不依賴儲存庫的預設值（新儲存庫通常是唯讀，建立 Release 會得到 403）。
+permissions:
+  contents: read
+
 jobs:
   build:
+    permissions:
+      contents: write # 建立 Release 並上傳安裝檔、簽章與 latest.json
     strategy:
       fail-fast: false
       matrix:
@@ -28,18 +35,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      # Rust 版本由 rust-toolchain.toml 決定（與本機、CI 相同）
+      - name: Rust 工具鏈
+        run: rustup install
+
+      # macOS 通用版（universal）需要兩個架構的編譯目標
+      - name: macOS 編譯目標
+        if: matrix.os == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # 標籤與五個檔案的版本號必須一致，否則在還沒花時間編譯前就讓流程失敗。
+      # 標籤名稱用環境變數傳入，不直接嵌進指令（避免特殊字元造成指令注入）。
+      - name: 檢查標籤與版本號一致
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/check-version.mjs "$TAG"
+
       - run: npm install
 
+      # --locked：鎖定檔過期就失敗；後面的打包用的是同一份鎖定檔
       - name: Rust 單元測試
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
       # 把編譯時的本機絕對路徑改寫成通用路徑，避免發佈的執行檔內嵌 runner 的目錄結構
       - name: 設定路徑改寫
@@ -59,5 +80,12 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "rdswitch ${{ github.ref_name }}"
           releaseDraft: true
+          # 標籤含 "-"（例如 v0.1.0-rc.1）就標示為預發行
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # 由 GitHub 從合併的 PR 自動產生發佈說明；自動更新的橫幅會顯示這份內容
+          generateReleaseNotes: true
+          # Windows 同時有 MSI 與 NSIS 安裝檔時，latest.json 預設會指向 MSI；
+          # 但程式是用 NSIS 安裝的，拿 MSI 更新會裝成另一份獨立的程式，所以要指定 NSIS
+          updaterJsonPreferNsis: true
           # tauri.release.conf.json 開啟 createUpdaterArtifacts：產生 .sig 與 latest.json，供應用程式內更新使用
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

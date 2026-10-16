@@ -85,12 +85,14 @@ Files: `profiles.json`, `favorites.json`, `settings.json` (language), `backups/`
 
 ## Build
 
-Requirements: Node 18+, stable Rust, and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS (Linux: `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`).
+Requirements: Node 18+, [rustup](https://rustup.rs) (the exact Rust version, with `rustfmt` and `clippy`, is pinned in `rust-toolchain.toml` and installed for you with `rustup install`), and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS (Linux: `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`).
 
 ```
 npm install
 npm run tauri dev                 # development (on Windows, run from an elevated terminal)
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+node scripts/check-i18n.mjs      # front-end translation consistency
+node scripts/check-version.mjs   # the five version numbers must agree
 npm run tauri build               # installers: nsis/msi, dmg, deb/AppImage
 ```
 

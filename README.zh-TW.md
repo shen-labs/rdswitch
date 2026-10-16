@@ -85,12 +85,14 @@ Windows 版本帶有 `requireAdministrator` manifest，啟動時會跳 UAC。同
 
 ## 建置
 
-需求：Node 18+、穩定版 Rust，以及你的作業系統所需的 [Tauri 前置套件](https://tauri.app/start/prerequisites/)（Linux：`libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`）。
+需求：Node 18+、[rustup](https://rustup.rs)（精確的 Rust 版本與 `rustfmt`、`clippy` 都鎖定在 `rust-toolchain.toml`，用 `rustup install` 即可安裝），以及你的作業系統所需的 [Tauri 前置套件](https://tauri.app/start/prerequisites/)（Linux：`libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`）。
 
 ```
 npm install
 npm run tauri dev                 # 開發（Windows 需在系統管理員終端機）
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+node scripts/check-i18n.mjs      # 前端翻譯字典的一致性
+node scripts/check-version.mjs   # 五個檔案的版本號必須一致
 npm run tauri build               # 產生安裝檔：nsis/msi、dmg、deb/AppImage
 ```
 
