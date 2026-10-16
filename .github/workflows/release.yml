@@ -43,6 +43,14 @@ jobs:
         with:
           node-version: 22
 
+      # 標籤與五個檔案的版本號必須一致，否則在還沒花時間編譯前就讓流程失敗。
+      # 標籤名稱用環境變數傳入，不直接嵌進指令（避免特殊字元造成指令注入）。
+      - name: 檢查標籤與版本號一致
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/check-version.mjs "$TAG"
+
       - run: npm install
 
       - name: Rust 單元測試

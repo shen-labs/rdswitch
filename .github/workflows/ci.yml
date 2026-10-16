@@ -55,6 +55,12 @@ jobs:
       - name: 翻譯字典一致性
         run: node scripts/check-i18n.mjs
 
+      - name: 版本號一致性（五個檔案）
+        run: node scripts/check-version.mjs
+
+      - name: 腳本的單元測試
+        run: node --test scripts/*.test.mjs
+
   test:
     name: 測試（${{ matrix.os }}）
     runs-on: ${{ matrix.os }}
