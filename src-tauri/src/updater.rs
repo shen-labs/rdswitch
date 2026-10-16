@@ -170,4 +170,25 @@ mod tests {
         assert!(up.get("dangerousInsecureTransportProtocol").is_none(), "不可允許不安全的傳輸協定");
         assert!(up.get("allowDowngrades").is_none(), "不可允許降級");
     }
+
+    /// 出貨的設定必須是「更新已啟用」（公鑰與網址都已填寫）。
+    /// 否則發佈出去的版本會悄悄停用更新，使用者永遠收不到修正。
+    #[test]
+    fn shipped_config_enables_the_updater() {
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert!(config_complete(&conf["plugins"]["updater"]), "plugins.updater 設定不完整（公鑰或更新網址），更新功能會被停用");
+    }
+
+    /// 公鑰必須是格式正確的 minisign 公鑰：能擋下貼上時被截斷、或誤貼成私鑰。
+    /// （這只驗證格式；它是否真的對應到簽章用的私鑰，要靠真實發佈後的更新測試確認。）
+    #[test]
+    fn shipped_pubkey_is_a_valid_minisign_public_key() {
+        use base64::Engine;
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let pubkey = conf["plugins"]["updater"]["pubkey"].as_str().expect("pubkey 必須是字串");
+        let bytes = base64::engine::general_purpose::STANDARD.decode(pubkey.trim()).expect("pubkey 必須是 base64");
+        let text = String::from_utf8(bytes).expect("pubkey 解碼後必須是文字");
+        assert!(text.starts_with("untrusted comment: minisign public key"), "這不是公鑰（是不是貼成私鑰了？）：{}", text.lines().next().unwrap_or(""));
+        minisign_verify::PublicKey::decode(&text).expect("公鑰格式錯誤（可能被截斷）");
+    }
 }

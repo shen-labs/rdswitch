@@ -65,7 +65,7 @@ The app can check for a newer version and install it in place — no need to dow
 - A few seconds after start and then every 6 hours, the app asks the release feed whether a newer version exists. If so, a banner appears at the top of the window showing the new version and its release notes. **Nothing is installed without your click**: choose *Update now* (the update is downloaded, its signature verified, installed, and the app restarts) or *Later* (dismisses the banner until the next launch).
 - Every update is signed. The app only installs updates whose signature matches the public key embedded in the app; an update without a valid signature is rejected. The release feed itself (`latest.json`) is *not* signed, so the app also requires the signature to carry the version it was signed for (`requireSignedVersion`) and rejects the update if that differs from the version the feed announces. This blocks a forged feed from pairing a high version number with an older, genuinely signed (but outdated) build.
 - Checks only contact the configured release feed (GitHub Releases) over HTTPS. There is no telemetry.
-- The updater is **disabled until the maintainer configures it** (Settings shows "update source not configured"). See [Releasing](#releasing-and-enabling-updates).
+- The updater only runs when both `plugins.updater.pubkey` and `plugins.updater.endpoints` are configured; this repository ships with both, so official builds check for updates. If either is missing (for example in a fork that has not set up its own key), the updater stays off and Settings shows "no update source is configured". See [Releasing](#releasing-and-enabling-updates).
 
 ## Privacy
 
@@ -108,8 +108,8 @@ RDS_E2E_PROFILE=<name of an existing profile> cargo test -- --ignored --nocaptur
 
 Installers for all three platforms are built by `.github/workflows/release.yml` when a `v*` tag is pushed. To turn on in-app updates the maintainer needs to:
 
-1. Generate a signing key pair (once): `npx tauri signer generate -w ~/.tauri/rdswitch.key`. **Never commit the private key.** If it is lost, existing installs can no longer be updated.
-2. Put the **public** key into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`.
+1. Generate a signing key pair (once), **outside the repository**, from a normal terminal (it asks for a password): `npx tauri signer generate -w ~/.tauri/rdswitch.key`. **Never commit the private key** (`*.key` is git-ignored as a safety net). If it is lost, existing installs can no longer be updated.
+2. Put the **public** key (`rdswitch.key.pub`) into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`. This repository already contains the public key of the official release key; a fork must use its own.
 3. `plugins.updater.endpoints` already points to `https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json`. If you fork the project, change it to your own repository.
 4. Add the repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key's contents) and, if you set one, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 5. Bump the version (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), push a `v*` tag, and **publish** the draft release the workflow creates. Clients only see published, non-draft, non-prerelease releases.

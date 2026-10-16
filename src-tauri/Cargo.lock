@@ -2878,6 +2878,7 @@ name = "rdswitch"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "minisign-verify",
  "regex",
  "serde",
  "serde_json",
