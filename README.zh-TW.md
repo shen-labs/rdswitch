@@ -110,7 +110,7 @@ RDS_E2E_PROFILE=<已存在的 profile 名稱> cargo test -- --ignored --nocaptur
 
 1. 產生簽章金鑰組（只做一次）：`npx tauri signer generate -w ~/.tauri/rdswitch.key`。**絕對不要提交私鑰。**私鑰遺失後，既有的安裝就無法再更新。
 2. 把**公鑰**填入 `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`。
-3. 把 `plugins.updater.endpoints` 設為 `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`。
+3. `plugins.updater.endpoints` 已經指向 `https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json`。如果你 fork 這個專案，請改成你自己的儲存庫。
 4. 在儲存庫新增 secrets：`TAURI_SIGNING_PRIVATE_KEY`（金鑰內容），若有設定密碼則加上 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。
 5. 更新版本號（`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`），推送 `v*` tag，並**發佈**工作流程建立的草稿 release。用戶端只看得到已發佈、非草稿、非預先發行的 release。
 

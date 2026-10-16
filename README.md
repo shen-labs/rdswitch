@@ -110,7 +110,7 @@ Installers for all three platforms are built by `.github/workflows/release.yml` 
 
 1. Generate a signing key pair (once): `npx tauri signer generate -w ~/.tauri/rdswitch.key`. **Never commit the private key.** If it is lost, existing installs can no longer be updated.
 2. Put the **public** key into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`.
-3. Set `plugins.updater.endpoints` to `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`.
+3. `plugins.updater.endpoints` already points to `https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json`. If you fork the project, change it to your own repository.
 4. Add the repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key's contents) and, if you set one, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 5. Bump the version (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), push a `v*` tag, and **publish** the draft release the workflow creates. Clients only see published, non-draft, non-prerelease releases.
 
