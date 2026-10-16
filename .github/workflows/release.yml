@@ -1,0 +1,62 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ""
+          - os: macos-latest
+            args: "--target universal-apple-darwin"
+          - os: ubuntu-22.04
+            args: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux 相依套件
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install
+
+      - name: Rust 單元測試
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # 把編譯時的本機絕對路徑改寫成通用路徑，避免發佈的執行檔內嵌 runner 的目錄結構
+      - name: 設定路徑改寫
+        shell: bash
+        run: |
+          echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}=/build --remap-path-prefix=${HOME}/.cargo=/cargo --remap-path-prefix=${HOME}/.rustup=/rustup" >> "$GITHUB_ENV"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 應用程式內更新的簽章金鑰（必要）：產生方式與設定步驟見 README 的「Releasing and enabling updates」
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # 程式碼簽章／公證（可選）：設定後會自動簽章
+          # APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "RustDesk Server Switcher ${{ github.ref_name }}"
+          releaseDraft: true
+          # tauri.release.conf.json 開啟 createUpdaterArtifacts：產生 .sig 與 latest.json，供應用程式內更新使用
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

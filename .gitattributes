@@ -1,0 +1,5 @@
+# 所有文字檔一律使用 LF，避免在不同作業系統間產生換行差異
+* text=auto eol=lf
+*.ico binary
+*.icns binary
+*.png binary

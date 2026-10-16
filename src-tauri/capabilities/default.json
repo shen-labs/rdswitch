@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "主視窗只需要事件監聽與自訂命令",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

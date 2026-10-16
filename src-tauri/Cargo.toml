@@ -1,0 +1,48 @@
+[package]
+name = "rdswitch"
+version = "0.1.0"
+description = "RustDesk Server Switcher"
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "rdswitch_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# 主程式在 Windows 帶有 requireAdministrator manifest，其測試執行檔無法在一般權限下執行；
+# 測試都在 lib 內，bin 不需要測試。
+[[bin]]
+name = "rdswitch"
+path = "src/main.rs"
+test = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+# 關閉預設的 `zip` 功能：它只用於 Tauri v1 相容的壓縮更新包，且依賴的 `zip` 套件版本已被撤回（yanked）。
+# 我們使用 v2 格式（Windows 的 .exe、Linux 的 AppImage、macOS 的 .app.tar.gz），不受影響。
+tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+regex = "1"
+
+[dev-dependencies]
+# 更新流程的整合測試需要 mock 應用程式
+tauri = { version = "2", features = ["test"] }
+# 更新整合測試用的本機假伺服器（成熟的套件，避免自己手寫 socket 收尾的問題）
+tiny_http = "0.12"
+
+# Windows 的開機自動啟動改用排程工作（見 platform.rs），其他平台才用 plugin
+[target.'cfg(not(windows))'.dependencies]
+tauri-plugin-autostart = "2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
