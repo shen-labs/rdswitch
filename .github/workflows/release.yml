@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}=/build --remap-path-prefix=${HOME}/.cargo=/cargo --remap-path-prefix=${HOME}/.rustup=/rustup" >> "$GITHUB_ENV"
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 應用程式內更新的簽章金鑰（必要）：產生方式與設定步驟見 README 的「Releasing and enabling updates」
