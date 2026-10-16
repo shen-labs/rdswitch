@@ -1,0 +1,52 @@
+# 相依套件與 GitHub Actions 的自動更新。Dependabot 會開 PR，每個 PR 都會經過 ci.yml 的檢查，
+# 全綠、你看過內容後再合併。安全性更新（有已知漏洞時）不受下面的排程限制，會立刻開 PR。
+#
+# 不涵蓋 rust-toolchain.toml（Rust 版本）：升級時手動修改，並確認 fmt、clippy 與測試仍然通過。
+version: 2
+
+updates:
+  # Rust 相依套件
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Tauri 的 crate 版本必須彼此對齊，一起更新才不會拆成互相不相容的 PR
+      tauri:
+        patterns:
+          - "tauri"
+          - "tauri-*"
+      # 其餘的小版本與修補版合併成一個 PR，減少雜訊
+      rust-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # 前端工具（目前只有 @tauri-apps/cli）
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Tauri CLI 與 Rust 端的 tauri 版本要一起升，所以也歸進同一組名稱
+      tauri:
+        patterns:
+          - "@tauri-apps/*"
+
+  # 工作流程用的 GitHub Actions（actions/checkout、tauri-action 等）
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
