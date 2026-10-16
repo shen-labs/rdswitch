@@ -264,7 +264,7 @@ pub fn rustdesk_get_option(key: &str) -> Option<String> {
 // 因此改用「最高權限」的排程工作。其他平台使用 tauri-plugin-autostart。
 
 #[cfg(windows)]
-const TASK_NAME: &str = "RustDeskServerSwitcher";
+const TASK_NAME: &str = "rdswitch";
 
 #[cfg(windows)]
 pub fn autostart_enabled() -> bool {

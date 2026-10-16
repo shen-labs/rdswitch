@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "RustDesk Server Switcher",
+  "productName": "rdswitch",
   "version": "0.1.0",
   "identifier": "dev.rdswitch.app",
   "build": {
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "RustDesk Server Switcher",
+        "title": "rdswitch",
         "width": 720,
         "height": 560,
         "minWidth": 360,
