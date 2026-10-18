@@ -167,6 +167,23 @@ const TABLE: &[(&str, [&str; 4])] = &[
             "RustDesk はシステムサービスとしてインストールされています。サーバーの切り替えには管理者/root 権限が必要です。権限を昇格してこのアプリを再起動してください",
         ],
     ),
+    (
+        "err.elevate_cancelled",
+        ["已取消授權，未做任何變更", "Authorization was cancelled; nothing was changed", "已取消授权，未做任何更改", "認証がキャンセルされました。変更は行われていません"],
+    ),
+    (
+        "err.elevate_failed",
+        [
+            "提升權限執行失敗（{status}）：{err}",
+            "Running with elevated privileges failed ({status}): {err}",
+            "提升权限运行失败（{status}）：{err}",
+            "権限を昇格した実行に失敗しました（{status}）：{err}",
+        ],
+    ),
+    (
+        "err.elevate_bad_input",
+        ["設定值含有不允許的字元，已拒絕執行", "The settings contain characters that are not allowed; refusing to run", "设置值含有不允许的字符，已拒绝执行", "設定値に使用できない文字が含まれているため、実行を拒否しました"],
+    ),
     ("err.no_exe", ["找不到 RustDesk 執行檔", "RustDesk executable not found", "找不到 RustDesk 可执行文件", "RustDesk の実行ファイルが見つかりません"]),
     (
         "err.mismatch",
