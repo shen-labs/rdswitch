@@ -308,7 +308,19 @@ mod tests {
         let addr = l.local_addr().unwrap();
         assert!(tcp_check(&[addr], Duration::from_secs(2)).is_ok());
         drop(l);
-        assert!(tcp_check(&[addr], Duration::from_secs(2)).is_err());
+        // 測試是平行執行的：別的測試可能剛好拿到這個剛釋放的埠（macOS 回收得特別快），
+        // 所以換幾個埠重試；只要有一次確認「沒人在聽的埠會失敗」就算驗證到了。
+        let mut closed_fails = tcp_check(&[addr], Duration::from_secs(2)).is_err();
+        for _ in 0..5 {
+            if closed_fails {
+                break;
+            }
+            let l = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = l.local_addr().unwrap();
+            drop(l);
+            closed_fails = tcp_check(&[addr], Duration::from_secs(2)).is_err();
+        }
+        assert!(closed_fails, "沒人在聽的埠，連線應該失敗");
     }
 
     #[test]
