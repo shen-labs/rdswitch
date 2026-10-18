@@ -82,8 +82,11 @@ jobs:
           releaseDraft: true
           # 標籤含 "-"（例如 v0.1.0-rc.1）就標示為預發行
           prerelease: ${{ contains(github.ref_name, '-') }}
-          # 由 GitHub 從合併的 PR 自動產生發佈說明；自動更新的橫幅會顯示這份內容
+          # 由 GitHub 從合併的 PR 自動產生發佈說明（放在 Release 頁面）
           generateReleaseNotes: true
+          # releaseBody 有兩個用途：放在 Release 說明的最前面，並寫進 latest.json 的 notes，
+          # 也就是應用程式內更新橫幅顯示的內容（自動產生的說明不會進 latest.json）
+          releaseBody: "Release notes and downloads: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
           # 目前只發佈 NSIS（tauri.conf.json 的 bundle.targets 不含 msi）。
           # 保險：若日後加回 MSI，latest.json 預設會指向 MSI，拿它更新會裝成另一份獨立的程式，所以固定指定 NSIS
           updaterJsonPreferNsis: true
