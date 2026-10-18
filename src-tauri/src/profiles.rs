@@ -279,13 +279,18 @@ fn backup(cfg: &Path, tag: &str) -> Result<(), String> {
             ))
         }
     };
+    fs::write(backup_dest(tag)?, data).map_err(|e| e.to_string())
+}
+
+/// 備份檔的路徑（確保備份資料夾存在）。
+fn backup_dest(tag: &str) -> Result<PathBuf, String> {
     let dir = platform::app_data_dir().join("backups");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    fs::write(dir.join(format!("{ts}-{tag}-{CONFIG_NAME}")), data).map_err(|e| e.to_string())
+    Ok(dir.join(format!("{ts}-{tag}-{CONFIG_NAME}")))
 }
 
 pub fn apply(p: &Profile) -> Result<(), String> {
@@ -304,21 +309,34 @@ fn apply_via_cli(p: &Profile) -> Result<(), String> {
         return Err(tr("err.need_admin"));
     }
     let exe = platform::rustdesk_exe().ok_or_else(|| tr("err.no_exe"))?;
-    backup(&user_config(), "user")?;
     let now = if elevated {
+        backup(&user_config(), "user")?;
         backup(&platform::service_config_dir().join(CONFIG_NAME), "service")?;
         for c in p.changes() {
             platform::rustdesk_set_option(&exe, c.key, c.value.as_deref().unwrap_or(""))?;
         }
         platform::rustdesk_get_option("custom-rendezvous-server")
     } else {
-        // 服務的設定目錄只有 root 讀得到，所以略過它的備份；整批設定只問一次密碼
+        // 整批設定只問一次密碼。備份也交給提升權限的腳本做：以 root 執行 `rustdesk --option`
+        // 會把使用者的 RustDesk2.toml 寫成 root 擁有，下次一般權限就讀不到、備份會失敗；
+        // 腳本備份之後也會把它的擁有者還原成目前使用者。
         let changes = p.changes();
         let pairs: Vec<(&str, &str)> = changes
             .iter()
             .map(|c| (c.key, c.value.as_deref().unwrap_or("")))
             .collect();
-        platform::rustdesk_set_options_elevated(&exe, &pairs, "custom-rendezvous-server")?
+        let path_str = |p: &Path| p.to_string_lossy().to_string();
+        let user_cfg = path_str(&user_config());
+        let service_cfg = path_str(&platform::service_config_dir().join(CONFIG_NAME));
+        let user_bk = path_str(&backup_dest("user")?);
+        let service_bk = path_str(&backup_dest("service")?);
+        platform::rustdesk_set_options_elevated(
+            &exe,
+            &pairs,
+            "custom-rendezvous-server",
+            &[(&user_cfg, &user_bk), (&service_cfg, &service_bk)],
+            &[&user_cfg],
+        )?
     };
     // 讀回驗證（讀不到就略過，不誤報失敗）
     if let Some(now) = now {

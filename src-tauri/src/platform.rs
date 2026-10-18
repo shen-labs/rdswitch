@@ -329,6 +329,18 @@ pub fn rustdesk_set_option(exe: &std::path::Path, key: &str, value: &str) -> Res
     Ok(())
 }
 
+/// 目前使用者的 (uid, gid)；Windows 沒有這個概念，回傳 None。
+fn current_uid_gid() -> Option<(u32, u32)> {
+    if cfg!(windows) {
+        return None;
+    }
+    let id = |flag: &str| -> Option<u32> {
+        let o = command("id").arg(flag).output().ok()?;
+        String::from_utf8_lossy(&o.stdout).trim().parse().ok()
+    };
+    Some((id("-u")?, id("-g")?))
+}
+
 fn in_path(name: &str) -> bool {
     env::var_os("PATH")
         .map(|paths| env::split_paths(&paths).any(|d| d.join(name).is_file()))
@@ -353,11 +365,20 @@ pub fn rustdesk_set_options_elevated(
     exe: &std::path::Path,
     changes: &[(&str, &str)],
     readback_key: &str,
+    backups: &[(&str, &str)],
+    restore_owner_of: &[&str],
 ) -> Result<Option<String>, String> {
     if !can_elevate_on_demand() {
         return Err(tr("err.need_admin"));
     }
-    let script = elevate::build_script(&exe.to_string_lossy(), changes, readback_key)?;
+    let script = elevate::build_script(&elevate::Plan {
+        exe: &exe.to_string_lossy(),
+        changes,
+        readback_key,
+        backups,
+        owner: current_uid_gid(),
+        restore_owner_of,
+    })?;
     let out = if cfg!(target_os = "macos") {
         command("osascript")
             .args(["-e", &elevate::osascript_arg(&script)])

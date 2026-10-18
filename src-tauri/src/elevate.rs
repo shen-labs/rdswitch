@@ -30,18 +30,41 @@ fn clean(s: &str) -> bool {
     !s.chars().any(|c| c.is_control())
 }
 
-/// 組出要以管理員身分執行的 shell 腳本：依序設定每個 option，最後讀回 `readback_key`。
-/// 任何一個設定失敗就中止（`set -e`），不會在半套狀態下繼續。
-pub fn build_script(
-    exe: &str,
-    changes: &[(&str, &str)],
-    readback_key: &str,
-) -> Result<String, String> {
+/// 要以管理員身分執行的工作。
+pub struct Plan<'a> {
+    pub exe: &'a str,
+    pub changes: &'a [(&'a str, &'a str)],
+    pub readback_key: &'a str,
+    /// (來源, 目的地)：設定之前由腳本備份；來源不存在就略過。
+    /// 備份放在腳本裡做，才不會因為來源檔被 root 弄成別人讀不到而在密碼視窗之前失敗。
+    pub backups: &'a [(&'a str, &'a str)],
+    /// 以 root 執行 `rustdesk --option` 會把使用者家目錄下的設定檔寫成 root 擁有；
+    /// 給定 (uid, gid) 時，腳本會把備份檔與 `restore_owner_of` 的檔案還給這個使用者。
+    pub owner: Option<(u32, u32)>,
+    pub restore_owner_of: &'a [&'a str],
+}
+
+/// 組出要以管理員身分執行的 shell 腳本：先備份，依序設定每個 option，還原檔案擁有者，
+/// 最後讀回 `readback_key`。任何一步失敗就中止（`set -e`），不會在半套狀態下繼續。
+pub fn build_script(plan: &Plan) -> Result<String, String> {
+    let (exe, readback_key) = (plan.exe, plan.readback_key);
     if !clean(exe) || exe.is_empty() || !valid_key(readback_key) {
         return Err(tr("err.elevate_bad_input"));
     }
+    let path_ok = |p: &str| !p.is_empty() && clean(p);
     let mut parts = vec!["set -e".to_string()];
-    for (key, value) in changes {
+    for (src, dest) in plan.backups {
+        if !path_ok(src) || !path_ok(dest) {
+            return Err(tr("err.elevate_bad_input"));
+        }
+        let (s, d) = (sh_quote(src), sh_quote(dest));
+        let chown = plan
+            .owner
+            .map(|(u, g)| format!("; chown {u}:{g} {d}"))
+            .unwrap_or_default();
+        parts.push(format!("if [ -e {s} ]; then cp -p {s} {d}{chown}; fi"));
+    }
+    for (key, value) in plan.changes {
         if !valid_key(key) || !clean(value) {
             return Err(tr("err.elevate_bad_input"));
         }
@@ -51,6 +74,15 @@ pub fn build_script(
             sh_quote(key),
             sh_quote(value)
         ));
+    }
+    if let Some((u, g)) = plan.owner {
+        for f in plan.restore_owner_of {
+            if !path_ok(f) {
+                return Err(tr("err.elevate_bad_input"));
+            }
+            let q = sh_quote(f);
+            parts.push(format!("if [ -e {q} ]; then chown {u}:{g} {q}; fi"));
+        }
     }
     parts.push(format!("echo {MARKER}"));
     parts.push(format!(
@@ -84,6 +116,18 @@ pub fn is_cancelled(code: Option<i32>, stderr: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 沒有備份、沒有還原擁有者的最簡單計畫。
+    fn script(exe: &str, changes: &[(&str, &str)], key: &str) -> Result<String, String> {
+        build_script(&Plan {
+            exe,
+            changes,
+            readback_key: key,
+            backups: &[],
+            owner: None,
+            restore_owner_of: &[],
+        })
+    }
 
     #[test]
     fn sh_quote_wraps_and_escapes_single_quotes() {
@@ -129,7 +173,7 @@ mod tests {
 
     #[test]
     fn script_sets_each_option_then_reads_back() {
-        let s = build_script(
+        let s = script(
             "/Applications/RustDesk.app/Contents/MacOS/RustDesk",
             &[
                 ("custom-rendezvous-server", "203.0.113.5"),
@@ -149,21 +193,18 @@ mod tests {
     fn script_rejects_control_characters_and_bad_keys() {
         let exe = "/usr/bin/rustdesk";
         let ok = [("relay-server", "x")];
-        assert!(build_script(exe, &ok, "relay-server").is_ok());
+        assert!(script(exe, &ok, "relay-server").is_ok());
         // 換行 / NUL / 其他控制字元
         for bad in ["a\nb", "a\rb", "a\0b", "a\tb", "a\u{1b}b"] {
-            assert!(build_script(exe, &[("relay-server", bad)], "relay-server").is_err());
-            assert!(build_script(bad, &ok, "relay-server").is_err());
+            assert!(script(exe, &[("relay-server", bad)], "relay-server").is_err());
+            assert!(script(bad, &ok, "relay-server").is_err());
         }
         // option 名稱：夾帶指令、大寫、空字串
         for key in ["relay-server; rm -rf /", "Relay", "", "a b", "k'x", "k$(x)"] {
-            assert!(
-                build_script(exe, &[(key, "v")], "relay-server").is_err(),
-                "{key}"
-            );
-            assert!(build_script(exe, &ok, key).is_err(), "{key}");
+            assert!(script(exe, &[(key, "v")], "relay-server").is_err(), "{key}");
+            assert!(script(exe, &ok, key).is_err(), "{key}");
         }
-        assert!(build_script("", &ok, "relay-server").is_err());
+        assert!(script("", &ok, "relay-server").is_err());
     }
 
     /// 惡意的值放進完整腳本後，用真正的 sh 執行，確認不會執行夾帶的指令。
@@ -179,7 +220,7 @@ mod tests {
         let evidence = dir.join("INJECTED");
 
         let nasty = format!("x'; touch '{}'; echo '", evidence.display());
-        let script = build_script(
+        let script = script(
             &fake.to_string_lossy(),
             &[("custom-rendezvous-server", &nasty)],
             "custom-rendezvous-server",
@@ -203,7 +244,7 @@ mod tests {
         // 第一個指令失敗時，後面的指令（含讀回）不應執行
         #[cfg(unix)]
         {
-            let s = build_script(
+            let s = script(
                 "/nonexistent/rustdesk",
                 &[("relay-server", "x")],
                 "relay-server",
@@ -217,6 +258,110 @@ mod tests {
             assert!(!out.status.success());
             assert!(!String::from_utf8_lossy(&out.stdout).contains(MARKER));
         }
+    }
+
+    #[test]
+    fn script_backs_up_first_then_restores_owner_before_the_readback() {
+        let s = build_script(&Plan {
+            exe: "/usr/bin/rustdesk",
+            changes: &[("relay-server", "x")],
+            readback_key: "relay-server",
+            backups: &[("/home/u/.config/RustDesk2.toml", "/home/u/bk/1-user.toml")],
+            owner: Some((501, 20)),
+            restore_owner_of: &["/home/u/.config/RustDesk2.toml"],
+        })
+        .unwrap();
+        let backup = s.find("cp -p '/home/u/.config/RustDesk2.toml'").unwrap();
+        let option = s.find("--option 'relay-server' 'x'").unwrap();
+        let restore = s
+            .find("chown 501:20 '/home/u/.config/RustDesk2.toml'")
+            .unwrap();
+        let marker = s.find(MARKER).unwrap();
+        assert!(
+            backup < option && option < restore && restore < marker,
+            "{s}"
+        );
+        // 備份檔也要還給使用者
+        assert!(s.contains("chown 501:20 '/home/u/bk/1-user.toml'"));
+    }
+
+    #[test]
+    fn script_rejects_bad_backup_and_owner_paths() {
+        let base = |backups: &[(&str, &str)], files: &[&str]| {
+            build_script(&Plan {
+                exe: "/usr/bin/rustdesk",
+                changes: &[("relay-server", "x")],
+                readback_key: "relay-server",
+                backups,
+                owner: Some((1, 1)),
+                restore_owner_of: files,
+            })
+        };
+        assert!(base(&[("/a", "/b")], &["/c"]).is_ok());
+        assert!(base(&[("", "/b")], &[]).is_err());
+        assert!(base(&[("/a", "/b\n; rm -rf /")], &[]).is_err());
+        assert!(base(&[], &["/c\u{0}"]).is_err());
+        assert!(base(&[], &[""]).is_err());
+    }
+
+    /// 用真正的 sh 與假的 rustdesk 驗證：備份檔內容正確、含空白與單引號的路徑也能處理、
+    /// 設定檔存在與否都不會讓腳本失敗；chown 成自己的 uid/gid（不需要 root）。
+    #[cfg(unix)]
+    #[test]
+    fn real_shell_backup_and_owner_restore() {
+        use std::os::unix::fs::PermissionsExt;
+        let id = |flag: &str| -> u32 {
+            let o = std::process::Command::new("id").arg(flag).output().unwrap();
+            String::from_utf8_lossy(&o.stdout).trim().parse().unwrap()
+        };
+        let (uid, gid) = (id("-u"), id("-g"));
+        let dir = std::env::temp_dir().join(format!("rds-elev-bk-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("bk dir")).unwrap();
+        let fake = dir.join("fake rustdesk");
+        std::fs::write(&fake, "#!/bin/sh\necho \"ARGS:$*\"\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let cfg = dir.join("it's cfg.toml");
+        std::fs::write(&cfg, "original").unwrap();
+        let missing = dir.join("missing.toml");
+        let (bk1, bk2) = (
+            dir.join("bk dir/1-user.toml"),
+            dir.join("bk dir/2-service.toml"),
+        );
+        let (fake_s, cfg_s, missing_s) = (
+            fake.to_string_lossy().to_string(),
+            cfg.to_string_lossy().to_string(),
+            missing.to_string_lossy().to_string(),
+        );
+        let (bk1_s, bk2_s) = (
+            bk1.to_string_lossy().to_string(),
+            bk2.to_string_lossy().to_string(),
+        );
+
+        let s = build_script(&Plan {
+            exe: &fake_s,
+            changes: &[("custom-rendezvous-server", "203.0.113.5")],
+            readback_key: "custom-rendezvous-server",
+            backups: &[(&cfg_s, &bk1_s), (&missing_s, &bk2_s)],
+            owner: Some((uid, gid)),
+            restore_owner_of: &[&cfg_s, &missing_s],
+        })
+        .unwrap();
+        let out = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg(&s)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        assert!(
+            out.status.success(),
+            "{text}{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(std::fs::read_to_string(&bk1).unwrap(), "original");
+        assert!(!bk2.exists(), "來源不存在就不該產生備份");
+        assert!(parse_readback(&text).is_some());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
