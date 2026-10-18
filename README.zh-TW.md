@@ -52,7 +52,7 @@ RustDesk 若已安裝為**系統服務**，執行中的服務行程把設定放�
 
 | RustDesk 安裝型態 | 做法 | 需要權限 |
 |---|---|---|
-| 已安裝為系統服務 | 以 `rustdesk --option <key> <value>` 通知執行中的服務，並讀回驗證 | 系統管理員／root |
+| 已安裝為系統服務 | 以 `rustdesk --option <key> <value>` 通知執行中的服務，並讀回驗證 | 系統管理員／root。Windows：以管理員身分啟動本程式。macOS／Linux：切換時跳出系統密碼視窗（`osascript`／`pkexec`），每次切換只問一次 |
 | 免安裝／無服務 | 關閉 GUI → 備份 → 原子寫入 `RustDesk2.toml` → 重啟 GUI | 一般使用者 |
 
 Windows 版本帶有 `requireAdministrator` manifest，啟動時會跳 UAC。同樣的原因，「開機自動啟動」使用最高權限的排程工作（一般的 `Run` 登錄項目無法在登入時啟動需提升權限的程式）。
@@ -173,7 +173,7 @@ src-tauri/windows-admin.manifest   Windows 以系統管理員執行
 
 ## 已知限制
 
-- 目前只在 Windows 驗證過。macOS／Linux 的設定路徑、`--option`、服務偵測，以及關閉與啟動 RustDesk 的方式都沒在實機測過；那兩個平台在已安裝服務時需要 root，請用 `sudo` 啟動本程式。
+- 目前只在 Windows 驗證過。macOS／Linux 的設定路徑、`--option`、服務偵測，以及關閉與啟動 RustDesk 的方式都沒在實機測過；已安裝服務時切換需要 root；在這兩個平台，程式會在切換當下跳出系統密碼視窗要求授權（macOS 用 `osascript`，Linux 用 `pkexec`）。這條路徑已實作，指令組裝有單元測試（含注入攻擊的案例），但密碼視窗本身尚未在實體 Linux 上試過；macOS 上目前只觀察過先前的「需要 root」偵測。
 - 安裝檔沒有程式碼簽章（Windows Authenticode／macOS 公證），作業系統會顯示安全警告。
 - RustDesk 以服務執行時，每次切換都需要系統管理員權限（Windows 為啟動時的 UAC）；目前沒有獨立的特權輔助程式。
 - UDP、中繼與 API 的連線檢查只做了一部分，見[伺服器狀態](#伺服器狀態)。

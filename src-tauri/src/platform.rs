@@ -1,6 +1,7 @@
 //! 平台設定適配層：所有「作業系統不同」的知識都集中在這個檔案，
 //! 其餘模組不得自行判斷作業系統。
 
+use crate::elevate;
 use crate::i18n::{tr, trf};
 use std::env;
 use std::path::PathBuf;
@@ -326,6 +327,59 @@ pub fn rustdesk_set_option(exe: &std::path::Path, key: &str, value: &str) -> Res
         ));
     }
     Ok(())
+}
+
+fn in_path(name: &str) -> bool {
+    env::var_os("PATH")
+        .map(|paths| env::split_paths(&paths).any(|d| d.join(name).is_file()))
+        .unwrap_or(false)
+}
+
+/// 目前不是管理員/root 時，能否在「切換當下」才要求提升權限（跳出系統密碼視窗）。
+/// Windows 沒有對應機制（啟動時由 manifest 要求管理員）；macOS 用 osascript，Linux 需要 pkexec。
+pub fn can_elevate_on_demand() -> bool {
+    if cfg!(windows) {
+        false
+    } else if cfg!(target_os = "macos") {
+        in_path("osascript")
+    } else {
+        in_path("pkexec")
+    }
+}
+
+/// 以系統密碼視窗提升權限，一次執行所有 `--option` 設定並讀回 `readback_key` 的值。
+/// 整批只問一次密碼；使用者取消會回傳明確的錯誤。回傳 None 代表讀不到值（略過驗證）。
+pub fn rustdesk_set_options_elevated(
+    exe: &std::path::Path,
+    changes: &[(&str, &str)],
+    readback_key: &str,
+) -> Result<Option<String>, String> {
+    if !can_elevate_on_demand() {
+        return Err(tr("err.need_admin"));
+    }
+    let script = elevate::build_script(&exe.to_string_lossy(), changes, readback_key)?;
+    let out = if cfg!(target_os = "macos") {
+        command("osascript")
+            .args(["-e", &elevate::osascript_arg(&script)])
+            .output()
+    } else {
+        command("pkexec").args(["sh", "-c", &script]).output()
+    }
+    .map_err(|e| trf("err.run_rustdesk", &[("err", &e.to_string())]))?;
+
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if !out.status.success() {
+        if elevate::is_cancelled(out.status.code(), &stderr) {
+            return Err(tr("err.elevate_cancelled"));
+        }
+        return Err(trf(
+            "err.elevate_failed",
+            &[("err", stderr.trim()), ("status", &out.status.to_string())],
+        ));
+    }
+    Ok(elevate::parse_readback(&String::from_utf8_lossy(
+        &out.stdout,
+    )))
 }
 
 /// 向執行中的 RustDesk 詢問某個 option 目前的值；讀不到（權限或輸出被吞）回傳 None。

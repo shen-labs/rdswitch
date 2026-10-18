@@ -1,3 +1,4 @@
+mod elevate;
 mod i18n;
 mod parse;
 mod platform;
@@ -260,7 +261,9 @@ fn get_state(app: AppHandle) -> Result<State, String> {
     Ok(State {
         platform: std::env::consts::OS,
         elevated,
-        needs_admin: platform::service_installed() && !elevated,
+        needs_admin: platform::service_installed()
+            && !elevated
+            && !platform::can_elevate_on_demand(),
         autostart: autostart_enabled(&app),
         lang: i18n::get().code(),
         lang_setting: settings::load().language,

@@ -298,17 +298,30 @@ pub fn apply(p: &Profile) -> Result<(), String> {
 
 /// 已安裝服務：以 `rustdesk --option` 通知執行中的服務，並讀回驗證。
 fn apply_via_cli(p: &Profile) -> Result<(), String> {
-    if !platform::is_elevated() {
+    let elevated = platform::is_elevated();
+    // 不是管理員時：macOS/Linux 可在切換當下跳出系統密碼視窗；Windows 則要求以管理員啟動
+    if !elevated && !platform::can_elevate_on_demand() {
         return Err(tr("err.need_admin"));
     }
     let exe = platform::rustdesk_exe().ok_or_else(|| tr("err.no_exe"))?;
     backup(&user_config(), "user")?;
-    backup(&platform::service_config_dir().join(CONFIG_NAME), "service")?;
-    for c in p.changes() {
-        platform::rustdesk_set_option(&exe, c.key, c.value.as_deref().unwrap_or(""))?;
-    }
+    let now = if elevated {
+        backup(&platform::service_config_dir().join(CONFIG_NAME), "service")?;
+        for c in p.changes() {
+            platform::rustdesk_set_option(&exe, c.key, c.value.as_deref().unwrap_or(""))?;
+        }
+        platform::rustdesk_get_option("custom-rendezvous-server")
+    } else {
+        // 服務的設定目錄只有 root 讀得到，所以略過它的備份；整批設定只問一次密碼
+        let changes = p.changes();
+        let pairs: Vec<(&str, &str)> = changes
+            .iter()
+            .map(|c| (c.key, c.value.as_deref().unwrap_or("")))
+            .collect();
+        platform::rustdesk_set_options_elevated(&exe, &pairs, "custom-rendezvous-server")?
+    };
     // 讀回驗證（讀不到就略過，不誤報失敗）
-    if let Some(now) = platform::rustdesk_get_option("custom-rendezvous-server") {
+    if let Some(now) = now {
         if now != p.server {
             return Err(trf(
                 "err.mismatch",
