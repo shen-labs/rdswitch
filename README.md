@@ -9,7 +9,7 @@ A small system-tray app for switching between [RustDesk](https://rustdesk.com) s
 
 ## Download
 
-Get the latest build from the [Releases](https://github.com/shen-labs/rdswitch/releases/latest) page and pick the file for your system:
+Get the latest build from the [Releases](https://github.com/shen8909/rdswitch/releases/latest) page and pick the file for your system:
 
 | System | File | Notes |
 |---|---|---|
@@ -124,7 +124,7 @@ Installers for all three platforms are built by `.github/workflows/release.yml` 
 
 1. Generate a signing key pair (once), **outside the repository**, from a normal terminal (it asks for a password): `npx tauri signer generate -w ~/.tauri/rdswitch.key`. **Never commit the private key** (`*.key` is git-ignored as a safety net). If it is lost, existing installs can no longer be updated.
 2. Put the **public** key (`rdswitch.key.pub`) into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`. This repository already contains the public key of the official release key; a fork must use its own.
-3. `plugins.updater.endpoints` already points to `https://github.com/shen-labs/rdswitch/releases/latest/download/latest.json`. If you fork the project, change it to your own repository.
+3. `plugins.updater.endpoints` already points to `https://github.com/shen8909/rdswitch/releases/latest/download/latest.json`. If you fork the project, change it to your own repository.
 4. Add the repository secrets `TAURI_SIGNING_PRIVATE_KEY` (the key's contents) and, if you set one, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 5. Bump the version (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), push a `v*` tag, and **publish** the draft release the workflow creates. Clients only see published, non-draft, non-prerelease releases.
 
